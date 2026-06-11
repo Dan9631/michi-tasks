@@ -42,11 +42,12 @@
   body.day .persGrid .pBtn.sel{background:#ffe9c4;}
   body.day #zoomCtrls button{background:#fbf3e4d9;}
   *{box-sizing:border-box; margin:0; padding:0;}
+  html{overscroll-behavior:none;}
   body{
     background:var(--bg); color:var(--txt);
     font-family:'Press Start 2P', monospace; font-size:11px;
     height:100dvh; display:flex; flex-direction:column; overflow:hidden;
-    touch-action:manipulation;
+    touch-action:manipulation; overscroll-behavior:none;
   }
   header{
     display:flex; align-items:center; gap:14px; padding:10px 14px;
@@ -226,10 +227,17 @@
     color:var(--green); padding:12px 16px; font-size:10px; display:none; z-index:60;
   }
   /* ---------- responsive móvil ---------- */
+  #zoomCtrls #zSize{display:none;} /* solo móvil */
   @media (max-width:900px){
     body{font-size:10px;}
     main{flex-direction:column;}
-    #stage{flex:0 0 auto; height:44dvh; padding:6px;}
+    #stage{flex:0 0 auto; height:44dvh; padding:4px; transition:height .25s ease;}
+    body.map-s #stage{height:28dvh;}
+    body.map-l #stage{height:62dvh;}
+    #zoomCtrls #zSize{display:block;}
+    #clock, #bowlInfo{display:none;} /* el HUD del mapa los reemplaza */
+    .catCard .ops .mini{font-size:14px; padding:8px 10px;}
+    #toast{left:10px; right:10px; bottom:auto; top:8px; text-align:center;}
     canvas#game{border-width:3px;}
     aside{width:100%; flex:1; border-left:none; border-top:4px solid var(--line); min-height:0;}
     header{padding:8px 10px; gap:8px;}
@@ -256,17 +264,23 @@
     header h1{font-size:10px;}
     .catCard canvas{width:48px; height:36px;}
   }
+  /* teléfono en horizontal: mapa y panel lado a lado */
+  @media (max-width:900px) and (orientation:landscape){
+    main{flex-direction:row;}
+    #stage{flex:1; height:auto !important;}
+    aside{width:330px; border-top:none; border-left:4px solid var(--line);}
+    #zoomCtrls #zSize{display:none;}
+    #drawer{left:auto; width:min(420px, 70vw);}
+  }
   /* ---------- safe areas (notch iOS/Android) ---------- */
   @supports(padding:max(0px)){
     header{padding-top:max(10px, env(safe-area-inset-top)); padding-left:max(14px, env(safe-area-inset-left)); padding-right:max(14px, env(safe-area-inset-right));}
-    .dataBar{padding-bottom:max(8px, env(safe-area-inset-bottom));}
+    .panel{padding-bottom:max(12px, env(safe-area-inset-bottom));}
   }
-  /* ---------- barra de datos ---------- */
-  .dataBar{
-    display:flex; gap:8px; padding:8px 12px; justify-content:center;
-    border-top:3px solid var(--line); background:var(--panel); flex-shrink:0;
-  }
-  .dataBar .btn{font-size:8px; padding:6px 10px;}
+  /* ---------- pestaña ⚙ Más ---------- */
+  #tabMore{flex:0 0 56px;}
+  .moreTxt{font-family:var(--fontB); font-size:17px; color:var(--dim); line-height:1.25; margin:6px 0 16px;}
+  .moreBtns{display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 16px;}
 </style>
 </head>
 <body>
@@ -291,12 +305,14 @@
       <button id="zIn" title="Acercar">＋</button>
       <button id="zOut" title="Alejar">－</button>
       <button id="zReset" title="Ver todo">⛶</button>
+      <button id="zSize" title="Tamaño del mapa">⇕</button>
     </div>
   </div>
   <aside>
     <div class="tabs">
       <button id="tabTasks" class="on">🐟 Tareas<span class="badge" id="taskBadge" hidden></span></button>
       <button id="tabCats">🐱 Gatos</button>
+      <button id="tabMore" title="Más opciones">⚙</button>
     </div>
     <div class="panel" id="panelCats"></div>
     <div class="panel on" id="panelTasks">
@@ -306,10 +322,18 @@
       </div>
       <div id="taskCols"></div>
     </div>
-    <div class="dataBar">
-      <button class="btn" id="btnExport">💾 Exportar datos</button>
-      <button class="btn" id="btnImport">📥 Importar datos</button>
-      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <div class="panel" id="panelMore">
+      <div class="colTitle e">💾 TUS DATOS</div>
+      <p class="moreTxt">Tus michis y tareas viven solo en este dispositivo. Exporta un respaldo de vez en cuando, o muévelos a otro teléfono.</p>
+      <div class="moreBtns">
+        <button class="btn" id="btnExport">💾 Exportar</button>
+        <button class="btn" id="btnImport">📥 Importar</button>
+        <input type="file" id="importFile" accept=".json,application/json" hidden>
+      </div>
+      <div class="colTitle p">📱 INSTALAR LA APP</div>
+      <p class="moreTxt">Android (Chrome): menú ⋮ → «Instalar aplicación».<br>iPhone (Safari): botón Compartir → «Añadir a pantalla de inicio».<br>Funciona sin conexión una vez instalada.</p>
+      <div class="colTitle f">🐱 MICHI TASKS</div>
+      <p class="moreTxt">Simulador 8-bit donde completar tus tareas alimenta a tus gatos. Toca un michi en el mapa para acariciarlo; usa ⇕ para cambiar el tamaño del mapa.</p>
     </div>
   </aside>
 </main>
@@ -1261,6 +1285,16 @@ function drawWorld(){
     }
   }
   ctx.setTransform(1,0,0,1,0,0);
+  // HUD en el mapa (móvil): reloj + peces del plato
+  if(window.innerWidth <= 900){
+    const hud = `${lastClock}  🐟${world.bowl.fish}`;
+    ctx.font = '10px monospace';
+    const tw = ctx.measureText(hud).width;
+    ctx.fillStyle = 'rgba(20,16,40,0.62)';
+    ctx.fillRect(6, 6, tw+14, 19);
+    ctx.fillStyle = '#ffe9c4';
+    ctx.fillText(hud, 13, 20);
+  }
 }
 function drawPlayer(x,y){
   ctx.fillStyle='#241c2e'; ctx.fillRect(x-6, y-29, 12, 26);
@@ -1489,14 +1523,30 @@ document.getElementById('btnCloseDrawer').onclick = exitQueueMode;
 /* ============================================================
    UI — pestañas, lista de gatos, modal
    ============================================================ */
-const tabCats = document.getElementById('tabCats');
-const tabTasks = document.getElementById('tabTasks');
 const panelCats = document.getElementById('panelCats');
 const panelTasks = document.getElementById('panelTasks');
-tabCats.onclick = ()=>{ tabCats.classList.add('on'); tabTasks.classList.remove('on');
-  panelCats.classList.add('on'); panelTasks.classList.remove('on'); renderCats(); };
-tabTasks.onclick = ()=>{ tabTasks.classList.add('on'); tabCats.classList.remove('on');
-  panelTasks.classList.add('on'); panelCats.classList.remove('on'); renderTasks(); };
+const TABS = {
+  tasks:{btn:'tabTasks', panel:'panelTasks', on:()=>renderTasks()},
+  cats: {btn:'tabCats',  panel:'panelCats',  on:()=>renderCats()},
+  more: {btn:'tabMore',  panel:'panelMore',  on:null},
+};
+function showTab(key){
+  for(const k in TABS){
+    document.getElementById(TABS[k].btn).classList.toggle('on', k===key);
+    document.getElementById(TABS[k].panel).classList.toggle('on', k===key);
+  }
+  if(TABS[key].on) TABS[key].on();
+}
+document.getElementById('tabTasks').onclick = ()=>showTab('tasks');
+document.getElementById('tabCats').onclick  = ()=>showTab('cats');
+document.getElementById('tabMore').onclick  = ()=>showTab('more');
+// ⇕ alterna el tamaño del mapa en móvil: medio → grande → chico → medio
+document.getElementById('zSize').onclick = ()=>{
+  const b = document.body.classList;
+  if(b.contains('map-l')){ b.remove('map-l'); b.add('map-s'); }
+  else if(b.contains('map-s')){ b.remove('map-s'); }
+  else b.add('map-l');
+};
 
 function renderCats(){
   if(!cats.length){
