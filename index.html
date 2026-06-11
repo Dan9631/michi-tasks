@@ -145,7 +145,15 @@
     font-family:var(--fontB); font-size:19px; line-height:1.05; color:#1a1426; cursor:pointer;
     word-break:break-word; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
   }
-  .fishTxt .m{font-family:var(--fontB); font-size:14px; color:#1a1426cc; margin-top:3px;}
+  .fishMeta{display:flex; align-items:center; gap:8px; margin-top:3px; flex-wrap:wrap;}
+  .fishTxt .m{font-family:var(--fontB); font-size:14px; color:#1a1426cc;}
+  .assign{
+    display:inline-flex; align-items:center; gap:4px; cursor:pointer;
+    background:#ffffff59; border:2px solid #1a142659; padding:0 6px 0 2px;
+  }
+  .assign:hover{background:#ffffff90;}
+  .assign img{width:22px; height:17px; image-rendering:pixelated;}
+  .assign span{font-family:var(--fontB); font-size:13px; color:#1a1426; line-height:1.4;}
   .fishTxt .editInp{
     width:100%; font-family:var(--fontB); font-size:18px; padding:4px 6px;
     background:#fffdf5; color:#1a1426; border:2px solid #1a1426; outline:none;
@@ -232,8 +240,15 @@
     .persGrid{grid-template-columns:repeat(2,1fr);}
     #catModal{padding:12px;}
     #preview{width:128px; height:96px;}
-    #drawer{left:6px; right:6px; top:6px; max-height:72%; padding:8px;}
+    /* en móvil la cola es una hoja inferior: el mapa queda libre para ver la fila */
+    #drawer{
+      position:fixed; left:0; right:0; bottom:0; top:auto; max-height:46dvh;
+      border-width:4px 0 0 0; padding:10px 10px max(10px, env(safe-area-inset-bottom));
+      z-index:45;
+    }
     #drawer h3{font-size:9px;}
+    .btnLabel{display:none;}
+    header .btn{font-size:12px;}
     #drawerCards .fishCard{min-width:260px; max-width:260px;}
     .tabs button{padding:10px 4px; font-size:10px;}
   }
@@ -261,8 +276,8 @@
   <span class="spacer"></span>
   <span id="clock">🌞 09:00</span>
   <span id="bowlInfo">🍽 plato: 0🐟</span>
-  <button class="btn blue" id="btnQueue">🐟 Consultar tareas</button>
-  <button class="btn primary" id="btnNewCat">+ Nuevo gato</button>
+  <button class="btn blue" id="btnQueue" title="Consultar tareas"><span id="btnQueueIco">🐟</span><span class="btnLabel" id="btnQueueTxt"> Consultar tareas</span></button>
+  <button class="btn primary" id="btnNewCat" title="Nuevo gato">＋<span class="btnLabel"> Nuevo gato</span></button>
 </header>
 <main>
   <div id="stage">
@@ -532,6 +547,7 @@ function buildSprites(cat){
     sit:    buildFrame(SPR.sit, cat),
     sleep:  buildFrame(SPR.sleep, cat),
   };
+  cat.avatarURL = cat.sprites.sit.toDataURL();
 }
 
 /* ============================================================
@@ -557,6 +573,19 @@ const world = {
   time:9, // hora del día (0-24); un día completo dura DAY_LEN segundos
 };
 const DAY_LEN = 300;
+/* confeti pixel para celebrar tareas completadas */
+const confetti = [];
+function burstConfetti(x, y, n=26){
+  for(let i=0;i<n;i++){
+    confetti.push({
+      x, y,
+      vx:(Math.random()*2-1)*85,
+      vy:-50-Math.random()*100,
+      t:0.9+Math.random()*0.6,
+      c:['#ffb648','#6fdc6f','#5ab2ff','#ff6f7d','#ffd1e8','#fffdf5'][i%6],
+    });
+  }
+}
 function lightLevel(){
   const t = world.time;
   if(t>=7 && t<18) return 1;
@@ -1090,6 +1119,13 @@ function updateAmbient(dt){
   }
   // regalos en el suelo se desvanecen
   world.gifts = world.gifts.filter(g0=>{ g0.t -= dt; return g0.t>0; });
+  // confeti
+  for(let i=confetti.length-1;i>=0;i--){
+    const p = confetti[i];
+    p.t -= dt; p.vy += 220*dt;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    if(p.t<=0) confetti.splice(i,1);
+  }
   // pez que salta
   const pf = world.pondFish;
   if(pf.t>0){ pf.t -= dt; }
@@ -1203,6 +1239,8 @@ function drawWorld(){
     else  { ctx.fillRect(bf.x-2, bf.y-3, 1, 4); ctx.fillRect(bf.x+1, bf.y-3, 1, 4); }
     ctx.fillStyle='#241c2e'; ctx.fillRect(bf.x-1, bf.y-2, 1, 3);
   }
+  // confeti
+  for(const p of confetti){ ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 3, 3); }
   // ---- ciclo día/noche ----
   const L = lightLevel();
   if(L < 0.98){
@@ -1249,9 +1287,19 @@ const STATE_INFO = {
 function addTask(title){
   title = title.trim();
   if(!title) return;
-  tasks.push({id:taskSeq++, title, state:'pendiente', createdAt:Date.now(), doneAt:null});
+  // asignación automática rotando entre los michis
+  const catId = cats.length ? cats[tasks.length % cats.length].id : null;
+  tasks.push({id:taskSeq++, title, state:'pendiente', catId, createdAt:Date.now(), doneAt:null});
   save(); renderTasks(); renderDrawer();
-  toast('🐟 Nueva tarea-pez en el estanque de pendientes');
+  const ass = cats.find(c=>c.id===catId);
+  toast(ass ? `🐟 Nueva tarea-pez — la cuida ${ass.name}` : '🐟 Nueva tarea-pez en el estanque');
+}
+function cycleAssign(id){
+  const tk = tasks.find(t=>t.id===id);
+  if(!tk || !cats.length) return;
+  const i = cats.findIndex(c=>c.id===tk.catId);
+  tk.catId = cats[(i+1) % cats.length].id;
+  save(); renderTasks(); renderDrawer();
 }
 function setTaskState(id, st){
   const tk = tasks.find(t=>t.id===id);
@@ -1262,9 +1310,21 @@ function setTaskState(id, st){
     tk.doneAt = Date.now();
     world.bowl.fish++; updateBowlInfo();
     toast('✔ ¡Tarea terminada! Un pescado cayó al plato 🍽');
-    // el gato que la cargaba celebra
+    burstConfetti(world.bowl.x, world.bowl.y-14, 30);
+    // el gato que la cargaba en la cola celebra
     const carrier = cats.find(c=>c.carry===id);
-    if(carrier){ carrier.say('♥',2.5); carrier.carry=null; }
+    if(carrier){ carrier.say('♥',2.5); carrier.carry=null; burstConfetti(carrier.x, carrier.y-22, 14); }
+    // el michi responsable (o el más hambriento) corre a comerse el pez
+    if(!sim.queueMode){
+      const eater = cats.find(c=>c.id===tk.catId) ??
+                    cats.slice().sort((a,b)=>b.hunger-a.hunger)[0];
+      if(eater){
+        if(eater.tree){ eater.y = eater.tree.y+4; eater.tree=null; }
+        eater.hidden=false; eater.hop=0; eater.tick=null; eater.then=null;
+        eater.say('♥',2);
+        startAction(eater,'comer');
+      }
+    }
   }
   if(st!=='finalizado') tk.doneAt=null;
   save(); renderTasks(); renderDrawer();
@@ -1282,13 +1342,17 @@ function fishCardHTML(tk, carrierName){
   if(tk.state==='finalizado') ops += `<button data-op="reopen" data-id="${tk.id}" title="Reabrir">↺</button>`;
   ops += `<button data-op="del" data-id="${tk.id}" title="Eliminar">✖</button>`;
   const who = carrierName ? `<div class="who">🐱 ${esc(carrierName)} te la trae:</div>` : '';
+  const ass = cats.find(c=>c.id===tk.catId);
+  const chip = cats.length
+    ? `<span class="assign" data-assign="${tk.id}" title="Cambiar michi responsable">${ass?`<img src="${ass.avatarURL}" alt="">`:''}<span>${ass?esc(ass.name):'sin michi'}</span></span>`
+    : '';
   return `<div>${who}<div class="fishCard ${info.cls}">
     <div class="fishTail"></div>
     <div class="fishBody">
       <div class="fishEye"></div>
       <div class="fishTxt">
         <div class="t" data-tid="${tk.id}" title="Toca para editar">${esc(tk.title)}</div>
-        <div class="m">${info.label}</div>
+        <div class="fishMeta"><span class="m">${info.label}</span>${chip}</div>
       </div>
       <div class="fishOps">${ops}</div>
     </div>
@@ -1325,6 +1389,9 @@ function handleTaskOp(e){
     }
     return;
   }
+  // tocar el chip del gato → cambiar responsable
+  const asEl = e.target.closest('.assign[data-assign]');
+  if(asEl){ cycleAssign(+asEl.dataset.assign); return; }
   // tocar el título de un pez → edición inline
   const titleEl = e.target.closest('.t[data-tid]');
   if(titleEl) startEditTask(titleEl, +titleEl.dataset.tid);
@@ -1369,11 +1436,16 @@ const sim = {queueMode:false};
 function enterQueueMode(){
   sim.queueMode = true;
   const active = tasks.filter(t=>t.state!=='finalizado');
+  const taken = new Set();
   cats.forEach((c,i)=>{
     c.tree=null; c.hidden=false; c.action='cola'; c.tick=null; c.then=null; c.hop=0;
     c.qT=0; c.queueSleep=false; c.mouse=false;
     if(c.stolen){ c.stolen=false; world.bowl.fish++; } // devuelve lo robado
-    c.carry = active[i] ? active[i].id : null;
+    // cada michi prefiere traer SU tarea asignada
+    const tk = active.find(t=>!taken.has(t.id) && t.catId===c.id) ??
+               active.find(t=>!taken.has(t.id));
+    if(tk) taken.add(tk.id);
+    c.carry = tk ? tk.id : null;
     c.queueSlot = i;
     const col = i%10, row = Math.floor(i/10);
     const sx = 545 - col*48, sy = 352 - row*42;
@@ -1384,13 +1456,15 @@ function enterQueueMode(){
   updateBowlInfo();
   renderDrawer();
   document.getElementById('drawer').classList.add('on');
-  document.getElementById('btnQueue').textContent = '🐾 Liberar gatos';
+  document.getElementById('btnQueueIco').textContent = '🐾';
+  document.getElementById('btnQueueTxt').textContent = ' Liberar gatos';
 }
 function exitQueueMode(){
   sim.queueMode = false;
   for(const c of cats){ c.carry=null; c.queueSlot=-1; c.queueSleep=false; c.endAction(); }
   document.getElementById('drawer').classList.remove('on');
-  document.getElementById('btnQueue').textContent = '🐟 Consultar tareas';
+  document.getElementById('btnQueueIco').textContent = '🐟';
+  document.getElementById('btnQueueTxt').textContent = ' Consultar tareas';
 }
 function renderDrawer(){
   if(!sim.queueMode) return;
@@ -1465,7 +1539,9 @@ panelCats.addEventListener('click', e=>{
   if(dl){
     const c = cats.find(x=>x.id===+dl.dataset.del);
     if(c && confirm(`¿Despedir a ${c.name}? 😿`)){
-      cats = cats.filter(x=>x!==c); save(); renderCats();
+      cats = cats.filter(x=>x!==c);
+      for(const t of tasks) if(t.catId===c.id) t.catId = cats.length ? cats[0].id : null;
+      save(); renderCats(); renderTasks(); renderDrawer();
     }
   }
 });
