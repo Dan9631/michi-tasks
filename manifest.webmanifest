@@ -1,0 +1,17 @@
+{
+  "name": "Michi Tasks",
+  "short_name": "MichiTasks",
+  "description": "Simulador 8-bit de gatos que cuidan tus tareas del día. Cada tarea es un pez: complétala y alimenta a tus michis.",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1a1426",
+  "theme_color": "#2a2140",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
