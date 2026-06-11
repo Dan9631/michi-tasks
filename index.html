@@ -51,6 +51,19 @@
     width:100%; height:100%; max-width:1280px; object-fit:contain;
     image-rendering:pixelated; image-rendering:crisp-edges;
     border:4px solid var(--line); background:#5da24c;
+    touch-action:none; /* gestos de zoom/pan propios */
+  }
+  #zoomCtrls{
+    position:absolute; right:16px; bottom:16px; display:flex; flex-direction:column; gap:8px; z-index:5;
+  }
+  #zoomCtrls button{
+    width:44px; height:44px; font-family:inherit; font-size:16px; cursor:pointer;
+    color:var(--txt); background:#2a2140d9; border:3px solid var(--line);
+  }
+  #zoomCtrls button:active{transform:translateY(2px); background:#41346b;}
+  @media (max-width:900px){
+    #zoomCtrls{right:10px; bottom:10px;}
+    #zoomCtrls button{width:40px; height:40px; font-size:14px;}
   }
   /* ---------- sidebar ---------- */
   aside{
@@ -224,6 +237,11 @@
       <h3>🐟 Tus michis traen las tareas…</h3>
       <div id="drawerCards"></div>
       <div style="text-align:right"><button class="btn" id="btnCloseDrawer">Cerrar (los gatos vuelven a lo suyo)</button></div>
+    </div>
+    <div id="zoomCtrls">
+      <button id="zIn" title="Acercar">＋</button>
+      <button id="zOut" title="Alejar">－</button>
+      <button id="zReset" title="Ver todo">⛶</button>
     </div>
   </div>
   <aside>
@@ -1052,7 +1070,10 @@ function updateAmbient(dt){
    DIBUJO del mundo
    ============================================================ */
 function drawWorld(){
+  ctx.setTransform(1,0,0,1,0,0);
   ctx.clearRect(0,0,W,H);
+  // cámara: zoom + desplazamiento
+  ctx.setTransform(cam.z, 0, 0, cam.z, -cam.x*cam.z, -cam.y*cam.z);
   ctx.drawImage(bgCv,0,0);
   // estanque
   const p = world.pond;
@@ -1167,6 +1188,7 @@ function drawWorld(){
       }
     }
   }
+  ctx.setTransform(1,0,0,1,0,0);
 }
 function drawPlayer(x,y){
   ctx.fillStyle='#241c2e'; ctx.fillRect(x-6, y-29, 12, 26);
@@ -1549,12 +1571,84 @@ function frame(now){
   drawWorld();
   requestAnimationFrame(frame);
 }
-// tocar/clicar gatos: acariciar o recuperar pescado robado
-cvs.addEventListener('pointerdown', e=>{
+/* ---------- cámara: zoom y desplazamiento ---------- */
+const cam = {z:1, x:0, y:0};
+function clampCam(){
+  cam.z = clamp(cam.z, 1, 3);
+  cam.x = clamp(cam.x, 0, W - W/cam.z);
+  cam.y = clamp(cam.y, 0, H - H/cam.z);
+}
+function zoomBy(f){
+  const cx = cam.x + W/(2*cam.z), cy = cam.y + H/(2*cam.z);
+  cam.z = clamp(cam.z*f, 1, 3);
+  cam.x = cx - W/(2*cam.z);
+  cam.y = cy - H/(2*cam.z);
+  clampCam();
+}
+document.getElementById('zIn').onclick  = ()=>zoomBy(1.3);
+document.getElementById('zOut').onclick = ()=>zoomBy(1/1.3);
+document.getElementById('zReset').onclick = ()=>{ cam.z=1; cam.x=0; cam.y=0; };
+cvs.addEventListener('wheel', e=>{ e.preventDefault(); zoomBy(e.deltaY<0 ? 1.15 : 1/1.15); }, {passive:false});
+
+function screenToWorld(clientX, clientY){
   const r = cvs.getBoundingClientRect();
   const s = Math.min(r.width/W, r.height/H);
   const ox = (r.width - W*s)/2, oy = (r.height - H*s)/2;
-  const x = (e.clientX - r.left - ox)/s, y = (e.clientY - r.top - oy)/s;
+  return {
+    x: cam.x + (clientX - r.left - ox)/s/cam.z,
+    y: cam.y + (clientY - r.top  - oy)/s/cam.z,
+  };
+}
+
+/* ---------- gestos: tocar gato / arrastrar (pan) / pellizcar (zoom) ---------- */
+const ptrs = new Map();
+let gestureMoved = false, pinch0 = null;
+cvs.addEventListener('pointerdown', e=>{
+  cvs.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId, {x:e.clientX, y:e.clientY, sx:e.clientX, sy:e.clientY});
+  gestureMoved = false;
+  if(ptrs.size===2){
+    const [a,b] = [...ptrs.values()];
+    pinch0 = {d:Math.hypot(b.x-a.x, b.y-a.y), z:cam.z};
+  }
+});
+cvs.addEventListener('pointermove', e=>{
+  const p = ptrs.get(e.pointerId);
+  if(!p) return;
+  const dx = e.clientX - p.x, dy = e.clientY - p.y;
+  p.x = e.clientX; p.y = e.clientY;
+  if(Math.hypot(p.x-p.sx, p.y-p.sy) > 9) gestureMoved = true;
+  if(ptrs.size===1 && cam.z>1){
+    const r = cvs.getBoundingClientRect();
+    const s = Math.min(r.width/W, r.height/H);
+    cam.x -= dx/s/cam.z;
+    cam.y -= dy/s/cam.z;
+    clampCam();
+  } else if(ptrs.size===2 && pinch0){
+    const [a,b] = [...ptrs.values()];
+    const d = Math.hypot(b.x-a.x, b.y-a.y);
+    if(d>10){
+      const cx = cam.x + W/(2*cam.z), cy = cam.y + H/(2*cam.z);
+      cam.z = clamp(pinch0.z * d/pinch0.d, 1, 3);
+      cam.x = cx - W/(2*cam.z); cam.y = cy - H/(2*cam.z);
+      clampCam();
+    }
+  }
+});
+function gestureEnd(e){
+  if(!ptrs.has(e.pointerId)) return;
+  ptrs.delete(e.pointerId);
+  if(ptrs.size<2) pinch0 = null;
+  if(ptrs.size===0 && !gestureMoved && e.type==='pointerup'){
+    const w0 = screenToWorld(e.clientX, e.clientY);
+    tapAt(w0.x, w0.y);
+  }
+}
+cvs.addEventListener('pointerup', gestureEnd);
+cvs.addEventListener('pointercancel', gestureEnd);
+
+// tocar/clicar gatos: acariciar o recuperar pescado robado
+function tapAt(x, y){
   let best=null, bd=26;
   for(const c of cats){
     if(c.hidden) continue;
@@ -1569,7 +1663,7 @@ cvs.addEventListener('pointerdown', e=>{
   } else if(best.state!=='queue_go'){
     best.say(['♥','purr…','miau'][(Math.random()*3)|0], 2);
   }
-});
+}
 /* ============================================================
    EXPORTAR / IMPORTAR datos
    ============================================================ */
