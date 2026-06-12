@@ -795,17 +795,42 @@ function randomPoint(rng){
 const bgCv = document.createElement('canvas'); bgCv.width=W; bgCv.height=H;
 (function paintBG(){
   const g = bgCv.getContext('2d');
-  g.fillStyle = '#5da24c'; g.fillRect(0,0,W,H);
   const r = mulberry32(777);
+  g.fillStyle = '#5da24c'; g.fillRect(0,0,W,H);
+  // textura de pasto: parches de dithering en dos tonos
+  for(let i=0;i<70;i++){
+    const px=(r()*W)|0, py=(r()*H)|0, pw=(24+r()*60)|0, ph=(14+r()*36)|0;
+    g.fillStyle = r()<.5 ? '#559a47' : '#65ad53';
+    for(let y=py; y<py+ph; y+=2)
+      for(let x=px+(((y>>1)%2)?2:0); x<px+pw; x+=4)
+        g.fillRect(x,y,2,2);
+  }
   // manchitas de sol
   for(const s of world.sunspots){
     g.fillStyle = '#74b85e';
     for(let dy=-26;dy<=26;dy+=2) for(let dx=-40;dx<=40;dx+=2)
       if((dx*dx)/(40*40)+(dy*dy)/(26*26)<1) g.fillRect(s.x+dx, s.y+dy, 2, 2);
   }
-  // pasto
+  // camino de tierra: del plato hacia el árbol, con desvío al estanque
+  const PATH = [[340,372],[300,322],[250,282],[200,232],[140,182],[95,138]];
+  const SPUR = [[250,282],[218,300]];
+  const lay = (pts, rad, col)=>{
+    for(let i=0;i<pts.length-1;i++){
+      const x1=pts[i][0], y1=pts[i][1], x2=pts[i+1][0], y2=pts[i+1][1];
+      const d=Math.hypot(x2-x1,y2-y1);
+      for(let t0=0;t0<=d;t0+=3) pxCircle(g, x1+(x2-x1)*t0/d, y1+(y2-y1)*t0/d, rad, col);
+    }
+  };
+  lay(PATH,9,'#8a6a3c'); lay(SPUR,8,'#8a6a3c');
+  lay(PATH,6,'#b08a54'); lay(SPUR,5,'#b08a54');
+  g.fillStyle='#8a6a3c'; // piedritas
+  for(let i=0;i<PATH.length-1;i++) for(let j=0;j<8;j++){
+    const t0=r(), x1=PATH[i][0], y1=PATH[i][1], x2=PATH[i+1][0], y2=PATH[i+1][1];
+    g.fillRect((x1+(x2-x1)*t0 + r()*8-4)|0, (y1+(y2-y1)*t0 + r()*8-4)|0, 2, 2);
+  }
+  // pasto (matitas)
   g.fillStyle = '#4c8a3d';
-  for(let i=0;i<900;i++){
+  for(let i=0;i<800;i++){
     const x=(r()*W)|0, y=(r()*H)|0;
     g.fillRect(x,y,2,1); if(r()<.5) g.fillRect(x,y-1,1,1);
   }
@@ -817,6 +842,15 @@ const bgCv = document.createElement('canvas'); bgCv.width=W; bgCv.height=H;
     g.fillRect(x-1,y,1,1); g.fillRect(x+1,y,1,1); g.fillRect(x,y-1,1,1); g.fillRect(x,y+1,1,1);
     g.fillStyle = '#ffb648'; g.fillRect(x,y,1,1);
   }
+  // cerca de madera en el borde superior
+  g.fillStyle='#6e4a26'; g.fillRect(0,47,W,5); g.fillRect(0,56,W,5);
+  g.fillStyle='#8a6a3c'; g.fillRect(0,48,W,3); g.fillRect(0,57,W,3);
+  for(let x=8;x<W;x+=26){
+    g.fillStyle='#241c2e'; g.fillRect(x-1,41,8,24);
+    g.fillStyle='#8a6a3c'; g.fillRect(x,42,6,22);
+    g.fillStyle='#6e4a26'; g.fillRect(x,42,2,22);
+    g.fillStyle='#a07a44'; g.fillRect(x+1,42,4,2);
+  }
 })();
 function pxEllipse(g,cx,cy,rx,ry,color){
   g.fillStyle = color;
@@ -824,6 +858,27 @@ function pxEllipse(g,cx,cy,rx,ry,color){
     if((dx*dx)/(rx*rx)+(dy*dy)/(ry*ry)<=1) g.fillRect(cx+dx,cy+dy,2,2);
 }
 function pxCircle(g,cx,cy,rad,color){ pxEllipse(g,cx,cy,rad,rad,color); }
+/* partículas ambientales: hojas, gotas, polvo */
+const fx = [];
+function spawnLeaf(x,y){
+  fx.push({k:'leaf', x, y, vx:Math.random()*16-8, vy:16+Math.random()*14,
+    t:1.9+Math.random()*0.9, ph:Math.random()*6,
+    c:['#56a342','#3f8a3a','#7ec45f'][(Math.random()*3)|0]});
+}
+function spawnSplash(x,y){
+  for(let i=0;i<6;i++){
+    fx.push({k:'drop', x:x+Math.random()*10-5, y, vx:Math.random()*70-35,
+      vy:-60-Math.random()*70, t:0.65+Math.random()*0.2});
+  }
+}
+function spawnDust(x,y){
+  fx.push({k:'dust', x:x+Math.random()*6-3, y, t:0.45});
+}
+function shadowEll(x,y,w){
+  ctx.fillStyle = 'rgba(24,18,34,0.22)';
+  ctx.fillRect(x-w/2, y-2, w, 3);
+  ctx.fillRect(x-w/2+w*0.18, y+1, w*0.64, 2);
+}
 function drawFishShape(g,x,y,s,color,line){
   // pez mirando a la izquierda (cola derecha); s = escala px
   g.fillStyle = line ?? '#1a1426';
@@ -923,6 +978,11 @@ class Cat{
         this.x += dx/d*v; this.y += dy/d*v;
         if(Math.abs(dx)>2) this.dir = dx>0?1:-1;
         this.walkT += dt*(this.curSpeed/45);
+        // polvito al correr a toda velocidad (zoomies / huida)
+        if(this.curSpeed>=100){
+          this._dustT = (this._dustT ?? 0) - dt;
+          if(this._dustT<=0){ spawnDust(this.x - this.dir*12, this.y-2); this._dustT = 0.09; }
+        }
         break;
       }
       case 'do':
@@ -1118,7 +1178,10 @@ function startAction(cat, key){
     case 'arbol': {
       const t = world.trees[(r()*world.trees.length)|0];
       cat.tree = t;
-      cat.goTo(t.x, t.y+4, cat.speed, ()=>{ cat.state='climb_up'; });
+      cat.goTo(t.x, t.y+4, cat.speed, ()=>{
+        cat.state='climb_up';
+        for(let i=0;i<6;i++) spawnLeaf(t.x-20+Math.random()*40, t.y-48+Math.random()*14);
+      });
       break;
     }
     case 'ovillo': {
@@ -1289,6 +1352,11 @@ function initButterflies(){
   for(let i=0;i<7;i++){
     world.fireflies.push({ax:60+r()*520, ay:90+r()*270, t:r()*10, x:0, y:0});
   }
+  world.clouds = [
+    {x:80,  y:95,  s:1.3, v:5},
+    {x:360, y:210, s:0.9, v:7.5},
+    {x:560, y:320, s:1.5, v:4},
+  ];
 }
 function scareButterfly(b, cat){
   b.ax = clamp(b.ax + (b.ax>cat.x?1:-1)*120 + (Math.sin(b.t)*60), 50, 590);
@@ -1345,10 +1413,30 @@ function updateAmbient(dt){
     p.t -= dt; p.y -= 13*dt;
     if(p.t<=0) motes.splice(i,1);
   }
-  // pez que salta
+  // pez que salta (+ salpicadura)
   const pf = world.pondFish;
   if(pf.t>0){ pf.t -= dt; }
-  else { pf.next -= dt; if(pf.next<=0){ pf.t=0.9; pf.next=6+Math.random()*8; } }
+  else { pf.next -= dt; if(pf.next<=0){ pf.t=0.9; pf.next=6+Math.random()*8; spawnSplash(world.pond.cx+20, world.pond.cy-2); } }
+  // hojas ambientales de los árboles
+  world.leafT = (world.leafT ?? 4) - dt;
+  if(world.leafT<=0){
+    const tr = world.trees[(Math.random()*world.trees.length)|0];
+    spawnLeaf(tr.x-18+Math.random()*36, tr.y-50+Math.random()*16);
+    world.leafT = 4+Math.random()*6;
+  }
+  // nubes con paralaje
+  if(world.clouds) for(const c of world.clouds){
+    c.x += c.v*dt;
+    if(c.x > W+70){ c.x = -70; c.y = 80+Math.random()*250; }
+  }
+  // partículas fx
+  for(let i=fx.length-1;i>=0;i--){
+    const p = fx[i]; p.t -= dt;
+    if(p.k==='leaf'){ p.y += p.vy*dt; p.x += p.vx*dt + Math.sin((2.8-p.t)*3+p.ph)*14*dt; }
+    else if(p.k==='drop'){ p.vy += 320*dt; p.x += p.vx*dt; p.y += p.vy*dt; }
+    else if(p.k==='dust'){ p.y -= 7*dt; }
+    if(p.t<=0) fx.splice(i,1);
+  }
   // macetas y cajas
   for(const p of world.pots) p.fallen = Math.max(0, p.fallen-dt);
   for(const b of world.boxes) b.wig = Math.max(0, b.wig-dt);
@@ -1393,11 +1481,13 @@ function drawWorld(){
   // ovillo
   const yn = world.yarn;
   const jx = yn.jig? Math.sin(performance.now()/50)*2 : 0;
+  shadowEll(yn.x, yn.y+6, 14);
   pxCircle(ctx, yn.x+jx, yn.y, 6, '#d84a8a');
   ctx.fillStyle='#ff8ab8'; ctx.fillRect(yn.x-4+jx, yn.y-2, 8, 1); ctx.fillRect(yn.x-3+jx, yn.y+1, 7, 1);
   // cajas
   for(const bx of world.boxes){
     const w0 = bx.wig? Math.sin(performance.now()/40)*1.5 : 0;
+    shadowEll(bx.x, bx.y+13, 34);
     ctx.fillStyle='#241c2e'; ctx.fillRect(bx.x-15+w0, bx.y-12, 30, 24);
     ctx.fillStyle='#a8743c'; ctx.fillRect(bx.x-13+w0, bx.y-10, 26, 20);
     ctx.fillStyle='#7a4f1d'; ctx.fillRect(bx.x-13+w0, bx.y-10, 26, 5);
@@ -1405,6 +1495,7 @@ function drawWorld(){
   }
   // macetas
   for(const pt of world.pots){
+    shadowEll(pt.x, pt.y+3, 16);
     if(pt.fallen>0){
       ctx.fillStyle='#b85c34'; ctx.fillRect(pt.x-10, pt.y-2, 14, 8);
       ctx.fillStyle='#241c2e'; ctx.fillRect(pt.x+4, pt.y-2, 2, 8);
@@ -1419,6 +1510,7 @@ function drawWorld(){
   }
   // árboles
   for(const tr of world.trees){
+    shadowEll(tr.x, tr.y+3, 42);
     ctx.fillStyle='#241c2e'; ctx.fillRect(tr.x-5, tr.y-30, 10, 32);
     ctx.fillStyle='#6e4a26'; ctx.fillRect(tr.x-4, tr.y-29, 8, 30);
     ctx.fillStyle='#553a1e'; ctx.fillRect(tr.x-4, tr.y-29, 3, 30);
@@ -1426,6 +1518,25 @@ function drawWorld(){
     pxCircle(ctx, tr.x-10, tr.y-38, 14, '#3f8a3a');
     pxCircle(ctx, tr.x+10, tr.y-40, 13, '#3f8a3a');
     pxCircle(ctx, tr.x-2, tr.y-50, 12, '#56a342');
+  }
+  // partículas: hojas, gotas y polvo (debajo de los gatos)
+  for(const p of fx){
+    if(p.k==='leaf'){
+      ctx.globalAlpha = Math.min(1, p.t/0.4);
+      ctx.fillStyle = p.c;
+      const tilt = Math.sin((2.8-p.t)*4+p.ph) > 0;
+      ctx.fillRect(p.x, p.y, tilt?3:2, tilt?2:3);
+    } else if(p.k==='drop'){
+      ctx.globalAlpha = Math.min(1, p.t/0.3);
+      ctx.fillStyle = '#a8c8ee';
+      ctx.fillRect(p.x, p.y, 2, 2);
+    } else { // polvo
+      ctx.globalAlpha = Math.max(0, p.t/0.45)*0.55;
+      ctx.fillStyle = '#cbb88f';
+      const s = 2 + (0.45-p.t)*9;
+      ctx.fillRect(p.x-s/2, p.y-s/2, s, s);
+    }
+    ctx.globalAlpha = 1;
   }
   // gatos ordenados por Y (los del árbol al final para quedar sobre la copa)
   const sorted = cats.slice().sort((a,b)=>a.y-b.y);
@@ -1473,6 +1584,18 @@ function drawWorld(){
       ctx.fillRect(p.x+wob, p.y, u*3, u);
       ctx.fillRect(p.x+wob+u, p.y+u, u, u);
       ctx.fillRect(p.x+wob, p.y+u*2, u*3, u);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // nubes con paralaje (solo de día)
+  if(world.clouds && !isNight()){
+    ctx.globalAlpha = 0.22;
+    ctx.fillStyle = '#f6faff';
+    for(const c of world.clouds){
+      const s = c.s;
+      ctx.fillRect(c.x-18*s, c.y-3*s, 36*s, 7*s);
+      ctx.fillRect(c.x-10*s, c.y-7*s, 20*s, 5*s);
+      ctx.fillRect(c.x-2*s,  c.y-10*s, 11*s, 4*s);
     }
     ctx.globalAlpha = 1;
   }
