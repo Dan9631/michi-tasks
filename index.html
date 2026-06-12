@@ -66,8 +66,37 @@
   .btn.primary:hover{background:#94621f;}
   .btn.blue{background:#1d3f7a; border-color:var(--blue); color:#d8edff;}
   .btn.blue:hover{background:#24508f;}
-  #bowlInfo,#clock{font-size:10px; color:var(--blue); padding:6px 10px; border:3px dashed var(--line); white-space:nowrap;}
+  #bowlInfo,#clock,#streakChip{font-size:10px; color:var(--blue); padding:6px 10px; border:3px dashed var(--line); white-space:nowrap;}
   #clock{color:var(--acc);}
+  #streakChip{color:var(--red);}
+  /* ---------- toggle hábito + resumen del día ---------- */
+  .addRow #recurToggle{font-size:8px; padding:0 8px; white-space:nowrap;}
+  .addRow #recurToggle.on{color:var(--acc); border-color:var(--acc);}
+  #sumOverlay{position:fixed; inset:0; background:#000c; display:none; align-items:center; justify-content:center; z-index:70; padding:16px;}
+  #sumOverlay.on{display:flex;}
+  #sumCard{
+    width:min(420px, 94vw); max-height:92vh; overflow-y:auto; text-align:center;
+    background:var(--panel); border:4px solid var(--acc);
+    box-shadow:0 0 0 4px var(--bg), 0 0 0 8px var(--line), 0 14px 0 8px #00000055;
+    padding:24px 20px;
+    animation:sumPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes sumPop{from{transform:scale(.65) translateY(30px); opacity:0;} to{transform:scale(1) translateY(0); opacity:1;}}
+  .sumTitle{font-size:13px; color:var(--acc); margin-bottom:8px;}
+  .sumDate{font-family:var(--fontB); font-size:17px; color:var(--dim); margin-bottom:16px; text-transform:capitalize;}
+  .sumStreak{display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:16px; padding:10px; border-top:3px solid var(--line); border-bottom:3px solid var(--line);}
+  .sumStreak .flame{font-size:34px; animation:flamePulse 1.1s ease-in-out infinite;}
+  @keyframes flamePulse{0%,100%{transform:scale(1) rotate(-3deg);} 50%{transform:scale(1.18) rotate(3deg);}}
+  #sumStreakN{font-size:12px; color:var(--txt); display:block; margin-bottom:5px;}
+  #sumBest{font-family:var(--fontB); font-size:15px; color:var(--dim);}
+  .sumRow{font-family:var(--fontB); font-size:19px; color:var(--txt); margin:7px 0;}
+  .sumRow b{color:var(--acc);}
+  .sumMvp{display:flex; align-items:center; justify-content:center; gap:12px; margin:16px auto; padding:10px 14px; border:3px dashed var(--line); width:fit-content; max-width:100%;}
+  .sumMvp img{width:48px; height:48px; image-rendering:pixelated; background:#4c8a3d; border:2px solid var(--line); flex-shrink:0;}
+  .sumMvp > div{text-align:left;}
+  #sumMvpName{font-size:11px; color:var(--acc); margin-bottom:5px;}
+  #sumMvpLine{font-family:var(--fontB); font-size:15px; color:var(--dim);}
+  #sumClose{margin-top:8px;}
   main{flex:1; display:flex; min-height:0;}
   #stage{flex:1; position:relative; background:var(--stage); display:flex; align-items:center; justify-content:center; padding:10px; min-width:0;}
   canvas#game{
@@ -256,7 +285,8 @@
     body.map-s #stage{height:28dvh;}
     body.map-l #stage{height:62dvh;}
     #zoomCtrls #zSize{display:block;}
-    #clock, #bowlInfo{display:none;} /* el HUD del mapa los reemplaza */
+    #clock, #bowlInfo, #streakChip{display:none;} /* el HUD del mapa los reemplaza */
+    .addRow #recurToggle{font-size:7px;}
     .catCard .ops .mini{font-size:14px; padding:8px 10px;}
     #toast{left:10px; right:10px; bottom:auto; top:8px; text-align:center;}
     canvas#game{border-width:3px;}
@@ -314,6 +344,7 @@
   <h1>🐱 MICHI TASKS</h1>
   <span class="sub" style="font-size:8px;color:var(--dim)">simulador 8-bit de gatos y tareas</span>
   <span class="spacer"></span>
+  <span id="streakChip" title="Racha de días con tareas completadas">🔥0</span>
   <span id="clock">🌞 09:00</span>
   <span id="bowlInfo">🍽 plato: 0🐟</span>
   <button class="btn blue" id="btnQueue" title="Consultar tareas"><span id="btnQueueIco">🐟</span><span class="btnLabel" id="btnQueueTxt"> Consultar tareas</span></button>
@@ -355,11 +386,17 @@
     <div class="panel on" id="panelTasks">
       <div class="addRow">
         <input id="taskInput" type="text" maxlength="80" placeholder="Nueva tarea del día…">
+        <button class="btn" id="recurToggle" title="Alternar: tarea de una vez / hábito que renace cada día">🐟 1 vez</button>
         <button class="btn primary" id="btnAddTask">+</button>
       </div>
       <div id="taskCols"></div>
     </div>
     <div class="panel" id="panelMore">
+      <div class="colTitle e">📊 TU RACHA</div>
+      <p class="moreTxt">Cada día que completas al menos una tarea, tu racha 🔥 crece. Los hábitos 🔁 renacen cada mañana porque los michis vuelven a tener hambre.</p>
+      <div class="moreBtns">
+        <button class="btn" id="btnTodaySummary">📊 Ver mi día</button>
+      </div>
       <div class="colTitle e">💾 TUS DATOS</div>
       <p class="moreTxt">Tus michis y tareas viven solo en este dispositivo. Exporta un respaldo de vez en cuando, o muévelos a otro teléfono.</p>
       <div class="moreBtns">
@@ -415,6 +452,27 @@
   </div>
 </div>
 <div id="toast"></div>
+
+<div id="sumOverlay">
+  <div id="sumCard">
+    <div class="sumTitle" id="sumTitle">✨ RESUMEN ✨</div>
+    <div class="sumDate" id="sumDate"></div>
+    <div class="sumStreak">
+      <span class="flame">🔥</span>
+      <div><b id="sumStreakN"></b><span id="sumBest"></span></div>
+    </div>
+    <div class="sumRow">🐟 <b id="sumDone">0</b> <span id="sumDoneLbl">tareas completadas</span></div>
+    <div class="sumRow">🔁 <b id="sumHabits">0</b> hábitos cumplidos</div>
+    <div class="sumMvp" id="sumMvpBox">
+      <img id="sumMvpImg" alt="">
+      <div>
+        <div id="sumMvpName"></div>
+        <div id="sumMvpLine"></div>
+      </div>
+    </div>
+    <button class="btn primary" id="sumClose">¡A por hoy! 🐾</button>
+  </div>
+</div>
 
 <script>
 'use strict';
@@ -1621,7 +1679,7 @@ function drawWorld(){
   ctx.setTransform(1,0,0,1,0,0);
   // HUD en el mapa (móvil y modo acuario): reloj + peces del plato
   if(window.innerWidth <= 900 || document.body.classList.contains('aqua')){
-    const hud = `${lastClock}  🐟${world.bowl.fish}`;
+    const hud = `${lastClock}  🐟${world.bowl.fish}  🔥${stats.streak}`;
     ctx.font = '10px monospace';
     const tw = ctx.measureText(hud).width;
     ctx.fillStyle = 'rgba(20,16,40,0.62)';
@@ -1647,20 +1705,81 @@ function drawPlayer(x,y){
    ============================================================ */
 let tasks = [];
 let taskSeq = 1;
+/* ---------- días reales, racha y estadísticas ---------- */
+function dateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayStr(){ return dateStr(new Date()); }
+function yesterdayStr(){ return dateStr(new Date(Date.now()-86400000)); }
+let stats = {streak:0, best:0, lastActive:null, lastRollover:null, history:{}};
+function updateStreakUI(){
+  const el = document.getElementById('streakChip');
+  if(el) el.textContent = `🔥${stats.streak}`;
+}
+/* al empezar un día real: hábitos renacen, lo viejo se archiva */
+function dailyRollover(){
+  const t = todayStr();
+  if(stats.lastRollover === t) return;
+  const prevDate = stats.lastRollover;
+  stats.lastRollover = t;
+  // la racha global se rompe si ayer no hubo actividad
+  if(stats.lastActive && stats.lastActive!==t && stats.lastActive!==yesterdayStr()) stats.streak = 0;
+  for(const tk of tasks){
+    if(!tk.recurring) continue;
+    if(tk.state==='finalizado' && tk.lastDone!==t){ tk.state='pendiente'; tk.doneAt=null; }
+    if(tk.lastDone && tk.lastDone!==t && tk.lastDone!==yesterdayStr()) tk.streak = 0; // hábito roto
+  }
+  // las tareas puntuales terminadas de días anteriores se archivan
+  tasks = tasks.filter(tk => tk.recurring || tk.state!=='finalizado');
+  // recortar historial a ~5 semanas
+  const keys = Object.keys(stats.history).sort();
+  while(keys.length>35) delete stats.history[keys.shift()];
+  save(); renderTasks(); renderDrawer(); updateStreakUI();
+  // resumen del día anterior si hubo actividad
+  if(prevDate && stats.history[prevDate]) showSummary(prevDate, false);
+}
+function showSummary(dateStr2, isToday){
+  const h = stats.history[dateStr2] ?? {done:0, habits:0, byCat:{}};
+  let mvp=null, mx=0;
+  for(const cid in (h.byCat ?? {})){
+    if(h.byCat[cid]>mx){ mx=h.byCat[cid]; mvp=cats.find(c=>c.id===+cid); }
+  }
+  if(!mvp && cats.length) mvp = cats[(Math.random()*cats.length)|0];
+  document.getElementById('sumTitle').textContent = isToday ? '✨ TU DÍA HOY ✨' : '✨ RESUMEN DE AYER ✨';
+  document.getElementById('sumDate').textContent =
+    new Date(dateStr2+'T12:00').toLocaleDateString('es', {weekday:'long', day:'numeric', month:'long'});
+  document.getElementById('sumStreakN').textContent = `${stats.streak} ${stats.streak===1?'día':'días'} de racha`;
+  document.getElementById('sumBest').textContent = stats.best>1 ? `récord: ${stats.best}` : '¡que empiece la racha!';
+  document.getElementById('sumDone').textContent = h.done;
+  document.getElementById('sumDoneLbl').textContent = h.done===1 ? 'tarea completada' : 'tareas completadas';
+  document.getElementById('sumHabits').textContent = `${h.habits}/${tasks.filter(t=>t.recurring).length || 0}`;
+  const mvpBox = document.getElementById('sumMvpBox');
+  if(mvp){
+    mvpBox.style.display = 'flex';
+    document.getElementById('sumMvpImg').src = mvp.avatarURL;
+    document.getElementById('sumMvpName').textContent = `🏆 ${mvp.name}`;
+    document.getElementById('sumMvpLine').textContent = mx>0
+      ? `cuidó ${mx} ${mx===1?'pez':'peces'} ${isToday?'hoy':'ayer'}`
+      : 'te hizo compañía todo el día';
+  } else mvpBox.style.display = 'none';
+  document.getElementById('sumOverlay').classList.add('on');
+  burstConfetti(world.bowl.x, world.bowl.y-14, 24);
+}
 const STATE_INFO = {
   pendiente:{label:'PENDIENTE', cls:'p'},
   encurso:{label:'EN CURSO', cls:'e'},
   finalizado:{label:'FINALIZADO', cls:'f'},
 };
-function addTask(title){
+function addTask(title, recurring=false){
   title = title.trim();
   if(!title) return;
   // asignación automática rotando entre los michis
   const catId = cats.length ? cats[tasks.length % cats.length].id : null;
-  tasks.push({id:taskSeq++, title, state:'pendiente', catId, createdAt:Date.now(), doneAt:null});
+  tasks.push({id:taskSeq++, title, state:'pendiente', catId, recurring,
+    streak:0, lastDone:null, createdAt:Date.now(), doneAt:null});
   save(); renderTasks(); renderDrawer();
   const ass = cats.find(c=>c.id===catId);
-  toast(ass ? `🐟 Nueva tarea-pez — la cuida ${ass.name}` : '🐟 Nueva tarea-pez en el estanque');
+  toast(recurring
+    ? `🔁 Hábito diario creado — ${ass?ass.name+' lo cuidará':'renace'} cada mañana`
+    : (ass ? `🐟 Nueva tarea-pez — la cuida ${ass.name}` : '🐟 Nueva tarea-pez en el estanque'));
 }
 function cycleAssign(id){
   const tk = tasks.find(t=>t.id===id);
@@ -1676,6 +1795,19 @@ function setTaskState(id, st){
   tk.state = st;
   if(st==='finalizado' && prev!=='finalizado'){
     tk.doneAt = Date.now();
+    // racha global y del hábito (una vez por día real)
+    const t = todayStr();
+    if(stats.lastActive !== t){
+      stats.streak = (stats.lastActive === yesterdayStr()) ? stats.streak+1 : 1;
+      stats.lastActive = t;
+      stats.best = Math.max(stats.best, stats.streak);
+      updateStreakUI();
+    }
+    if(tk.recurring && tk.lastDone !== t) tk.streak = (tk.streak||0)+1;
+    tk.lastDone = t;
+    const h = stats.history[t] ?? (stats.history[t] = {done:0, habits:0, byCat:{}});
+    h.done++; if(tk.recurring) h.habits++;
+    if(tk.catId) h.byCat[tk.catId] = (h.byCat[tk.catId]||0)+1;
     world.bowl.fish++; updateBowlInfo();
     toast('✔ ¡Tarea terminada! Un pescado cayó al plato 🍽');
     burstConfetti(world.bowl.x, world.bowl.y-14, 30);
@@ -1720,7 +1852,7 @@ function fishCardHTML(tk, carrierName){
       <div class="fishEye"></div>
       <div class="fishTxt">
         <div class="t" data-tid="${tk.id}" title="Toca para editar">${esc(tk.title)}</div>
-        <div class="fishMeta"><span class="m">${info.label}</span>${chip}</div>
+        <div class="fishMeta"><span class="m">${info.label}</span>${tk.recurring?`<span class="m" title="Hábito diario">🔁${tk.streak>1?` ${tk.streak}🔥`:''}</span>`:''}${chip}</div>
       </div>
       <div class="fishOps">${ops}</div>
     </div>
@@ -1830,13 +1962,25 @@ function attachSwipe(container){
 }
 attachSwipe(document.getElementById('taskCols'));
 attachSwipe(document.getElementById('drawerCards'));
+let draftRecurring = false;
+document.getElementById('recurToggle').onclick = ()=>{
+  draftRecurring = !draftRecurring;
+  const b = document.getElementById('recurToggle');
+  b.textContent = draftRecurring ? '🔁 diaria' : '🐟 1 vez';
+  b.classList.toggle('on', draftRecurring);
+};
 document.getElementById('btnAddTask').onclick = ()=>{
   const inp = document.getElementById('taskInput');
-  addTask(inp.value); inp.value=''; inp.focus();
+  addTask(inp.value, draftRecurring); inp.value=''; inp.focus();
 };
 document.getElementById('taskInput').addEventListener('keydown', e=>{
-  if(e.key==='Enter'){ addTask(e.target.value); e.target.value=''; }
+  if(e.key==='Enter'){ addTask(e.target.value, draftRecurring); e.target.value=''; }
 });
+document.getElementById('sumClose').onclick = ()=>document.getElementById('sumOverlay').classList.remove('on');
+document.getElementById('sumOverlay').addEventListener('click', e=>{
+  if(e.target===document.getElementById('sumOverlay')) e.target.classList.remove('on');
+});
+document.getElementById('btnTodaySummary').onclick = ()=>showSummary(todayStr(), true);
 function updateBowlInfo(){
   document.getElementById('bowlInfo').textContent = `🍽 plato: ${world.bowl.fish}🐟`;
   save();
@@ -2093,7 +2237,7 @@ function toast(msg){
 const LS_KEY = 'michi-tasks-v1';
 function save(){
   const data = {
-    catSeq, taskSeq, bowlFish: world.bowl.fish, time: world.time,
+    catSeq, taskSeq, bowlFish: world.bowl.fish, time: world.time, stats,
     cats: cats.map(c=>({id:c.id, name:c.name, personality:c.personality, fur:c.fur,
       pattern:c.pattern, patternColor:c.patternColor, eye:c.eye, seed:c.seed, hunger:Math.round(c.hunger)})),
     tasks,
@@ -2107,6 +2251,7 @@ function load(){
     catSeq = data.catSeq ?? 1; taskSeq = data.taskSeq ?? 1;
     world.bowl.fish = data.bowlFish ?? 0;
     world.time = data.time ?? 9;
+    stats = data.stats ?? {streak:0, best:0, lastActive:null, lastRollover:todayStr(), history:{}};
     cats = data.cats.map(d=>new Cat(d));
     tasks = data.tasks ?? [];
     return;
@@ -2124,8 +2269,9 @@ function load(){
   tasks = [
     {id:taskSeq++, title:'Revisar el correo de la mañana', state:'pendiente', createdAt:Date.now(), doneAt:null},
     {id:taskSeq++, title:'Preparar la reunión de las 3pm', state:'encurso', createdAt:Date.now(), doneAt:null},
-    {id:taskSeq++, title:'Salir a caminar 20 min', state:'pendiente', createdAt:Date.now(), doneAt:null},
+    {id:taskSeq++, title:'Salir a caminar 20 min', state:'pendiente', recurring:true, streak:0, lastDone:null, createdAt:Date.now(), doneAt:null},
   ];
+  stats.lastRollover = todayStr();
   save();
 }
 
@@ -2340,6 +2486,9 @@ if('serviceWorker' in navigator){
 load();
 syncTheme();
 initButterflies();
+dailyRollover();           // hábitos renacen si es un día nuevo
+setInterval(dailyRollover, 60000); // y también si la medianoche llega con la app abierta
+updateStreakUI();
 renderTasks();
 renderCats();
 updateBowlInfo();
