@@ -107,7 +107,7 @@
     display:flex; gap:10px; align-items:center; background:var(--panel2);
     border:3px solid var(--line); padding:8px; margin-bottom:10px;
   }
-  .catCard canvas{width:64px; height:48px; image-rendering:pixelated; background:#4c8a3d; border:2px solid var(--line); flex-shrink:0;}
+  .catCard canvas{width:56px; height:56px; image-rendering:pixelated; background:#4c8a3d; border:2px solid var(--line); flex-shrink:0;}
   .catCard .info{flex:1; min-width:0;}
   .catCard .nm{color:var(--acc); font-size:11px; margin-bottom:4px;}
   .catCard .ps{color:var(--dim); font-family:var(--fontB); font-size:16px; line-height:1; margin-bottom:4px;}
@@ -153,7 +153,7 @@
     background:#ffffff59; border:2px solid #1a142659; padding:0 6px 0 2px;
   }
   .assign:hover{background:#ffffff90;}
-  .assign img{width:22px; height:17px; image-rendering:pixelated;}
+  .assign img{width:18px; height:18px; image-rendering:pixelated;}
   .assign span{font-family:var(--fontB); font-size:13px; color:#1a1426; line-height:1.4;}
   .fishTxt .editInp{
     width:100%; font-family:var(--fontB); font-size:18px; padding:4px 6px;
@@ -460,69 +460,179 @@ const ACTION_LABEL = {
 };
 
 /* ============================================================
-   SPRITES — gato procedural 16x12
+   SPRITES — gato procedural 24x18, 4 frames de caminata,
+   cola animada, susto, estiramiento, amasado y retrato frontal
    ============================================================ */
+const HEAD = [ // filas 0-12 compartidas (cabeza+cuerpo, cola en cols 1-3)
+  "..............bb....bb..",
+  "..............bib..bib..",
+  ".............bbbbbbbbb..",
+  ".bb..........bbbbbbbbbb.",
+  ".bb..........beebbbeebb.",
+  "..b..........bbbbbbbbbn.",
+  "..bb.........bbbbbbbbbb.",
+  "...bbbbbbbbbbbbbbbbbbb..",
+  "..bbbbbbbbbbbbbbbbbbbb..",
+  "..bbbbbbbbbbbbbbbbbbb...",
+  "..bbbbbbbbbbbbbbbbbbb...",
+  "..bbbbbbbbbbbbbbbbbbb...",
+  "..ddddddddddddddddddd...",
+];
+const LEGS_A = [
+  "...bbb..bbb..bbb..bbb...",
+  "...bbb..bbb..bbb..bbb...",
+  "...bbb..bbb..bbb..bbb...",
+  "...bbb..bbb..bbb..bbb...",
+  "........................",
+];
+const LEGS_B = [
+  "..bbb...bbb..bbb...bbb..",
+  "..bbb...bbb..bbb...bbb..",
+  "..bbb...bbb..bbb...bbb..",
+  "..bbb........bbb........",
+  "........................",
+];
+const LEGS_C = [
+  "...bbb..bbb..bbb..bbb...",
+  "...bbb..bbb..bbb..bbb...",
+  "...bbb..bbb..bbb..bbb...",
+  "........................",
+  "........................",
+];
+const LEGS_D = [
+  "....bbb..bbb..bbb..bbb..",
+  "....bbb..bbb..bbb..bbb..",
+  "....bbb..bbb..bbb..bbb..",
+  "........bbb.......bbb...",
+  "........................",
+];
+const SIT_BASE = [
+  "..............bb....bb..",
+  "..............bib..bib..",
+  ".............bbbbbbbbb..",
+  ".............bbbbbbbbbb.",
+  ".............beebbbeebb.",
+  ".............bbbbbbbbbn.",
+  ".............bbbbbbbbbb.",
+  "..............bbbbbbbb..",
+  ".............bbbbbbbb...",
+  "...........bbbbbbbbb....",
+  ".........bbbbbbbbbbb....",
+];
 const SPR = {
-  standA:[
-    "................",
-    ".........bb..bb.",
-    ".........bibbib.",
-    ".........bbbbbb.",
-    ".........bebbeb.",
-    ".bb......bbbbnb.",
-    "..bbbbbbbbbbbb..",
-    "..bbbbbbbbbbbb..",
-    "..bbbbbbbbbbb...",
-    "..bbbbbbbbbbb...",
-    "..bb..bb..bb....",
-    "..bb..bb..bb....",
-  ],
-  standB:[
-    "................",
-    ".........bb..bb.",
-    ".........bibbib.",
-    ".........bbbbbb.",
-    ".........bebbeb.",
-    ".bb......bbbbnb.",
-    "..bbbbbbbbbbbb..",
-    "..bbbbbbbbbbbb..",
-    "..bbbbbbbbbbb...",
-    "..bbbbbbbbbbb...",
-    ".bb....bb...bb..",
-    ".bb....bb...bb..",
-  ],
-  sit:[
-    "................",
-    "................",
-    ".........bb..bb.",
-    ".........bibbib.",
-    ".........bbbbbb.",
-    ".........bebbeb.",
-    ".........bbbbnb.",
-    "........bbbbbb..",
-    ".......bbbbbbb..",
-    ".bb...bbbbbbbb..",
-    "..bbbbbbbbbbbb..",
-    "......bbb..bb...",
-  ],
+  walkA: HEAD.concat(LEGS_A),
+  walkB: HEAD.concat(LEGS_B),
+  walkC: HEAD.concat(LEGS_C),
+  walkD: HEAD.concat(LEGS_D),
+  sitA: SIT_BASE.concat([ // cola descansando en el suelo
+    "........bbbbbbbbbbbb....",
+    ".......bbbbbbbbbbbbb....",
+    "......bbbbbbbbbbbbbb....",
+    "......bbbbbbbbbbbbbb....",
+    "......dddddddddddddd....",
+    ".bbbbbbbb......bbb......",
+    "........................",
+  ]),
+  sitB: SIT_BASE.concat([ // cola levantada (meneo)
+    ".bb.....bbbbbbbbbbbb....",
+    "..bb...bbbbbbbbbbbbb....",
+    "...bbbbbbbbbbbbbbbbb....",
+    "......bbbbbbbbbbbbbb....",
+    "......dddddddddddddd....",
+    "......bbb......bbb......",
+    "........................",
+  ]),
   sleep:[
-    "................",
-    "................",
-    "................",
-    "................",
-    "........bb..bb..",
-    "........bibbib..",
-    "........bbbbbb..",
-    ".bbbbbbbbcbbcb..",
-    ".bbbbbbbbbbbbb..",
-    ".bbbbbbbbbbbbb..",
-    ".bbbbbbbbbbbbb..",
-    "................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "........................",
+    "..............bb....bb..",
+    "..............bib..bib..",
+    ".............bbbbbbbbb..",
+    ".............bbbbbbbbbb.",
+    "....bbbbbbbbbccbbbccbbb.",
+    "...bbbbbbbbbbbbbbbbbbbb.",
+    "...bbbbbbbbbbbbbbbbbbbb.",
+    "...bbbbbbbbbbbbbbbbbbbb.",
+    ".bbbbbbbbbbbbbbbbbbbbbb.",
+    "...dddddddddddddddddddd.",
+    "........................",
+    "........................",
+    "........................",
+  ],
+  stretch:[ // el clásico estirón al despertar: pompis arriba, frente abajo
+    "........................",
+    "..bb....................",
+    ".bb.....................",
+    ".bb.bbb.................",
+    "...bbbbbb...............",
+    "...bbbbbbbbb............",
+    "...bbbbbbbbbbbb.........",
+    "...bbbbbbbbbbbbbb.......",
+    "....bbbbbbbbbbb.bb..bb..",
+    ".....bbbbbbbbbbbbbbbbb..",
+    "......bbbb....bbbbbbbbb.",
+    "......bbb.....beebbeebb.",
+    "......bbb.....bbbbbbbbn.",
+    "......bbb....bbbbbbbbbb.",
+    "......bbb..bbbbbbbbb....",
+    "......bbb..bbb....bbb...",
+    "........................",
+    "........................",
   ],
 };
+{ // susto: cola esponjada, orejas atrás, lomo arqueado
+  const SCARED_TOP = [
+    "........................",
+    "..............bbb..bbb..",
+    ".bbb.........bbbbbbbbb..",
+    "bbbb.........bbbbbbbbbb.",
+    ".bbb.........beebbbeebb.",
+    "bbbb.........bbbbbbbbbn.",
+    ".bbb.........bbbbbbbbbb.",
+    "..bbb........bbbbbbbbb..",
+    "...bbbbbbbbbbbbbbbbbbb..",
+    "..bbbbbbbbbbbbbbbbbbbb..",
+    "..bbbbbbbbbbbbbbbbbbb...",
+    "..bbbbbbbbbbbbbbbbbbb...",
+    "..ddddddddddddddddddd...",
+  ];
+  SPR.scaredA = SCARED_TOP.concat(LEGS_B);
+  SPR.scaredB = SCARED_TOP.concat(LEGS_D);
+}
+{ // amasado: patitas delanteras alternando
+  const KNEAD_BASE = SPR.sitA.slice(0,15);
+  SPR.kneadA = KNEAD_BASE.concat(["......bbb.....bbb..bb...","........................","........................"]).slice(0,18);
+  SPR.kneadB = KNEAD_BASE.concat(["......bbb......bb.bbb...","........................","........................"]).slice(0,18);
+}
+SPR.portrait = [ // carita frontal 16x16 para retratos
+  ".bb.........bb..",
+  ".bib........bib.",
+  ".bbb........bbb.",
+  ".bbbbbbbbbbbbbb.",
+  ".bbbbbbbbbbbbbb.",
+  ".bbbbbbbbbbbbbb.",
+  ".bbeebbbbbbeebb.",
+  ".bbbbbbbbbbbbbb.",
+  ".bbbbbbnnbbbbbb.",
+  ".bbbbbcbbcbbbbb.",
+  ".bbbbbbbbbbbbbb.",
+  "..bbbbbbbbbbbb..",
+  "..bbbbbbbbbbbb..",
+  "...bbbbbbbbbb...",
+  "..bbbbbbbbbbbb..",
+  "................",
+];
 const OUTLINE = '#241c2e';
-function buildFrame(grid, cat){
-  const W=16, H=12, seed = cat.seed;
+function shade(hex, f){
+  const n = parseInt(hex.slice(1),16);
+  const r = Math.round(((n>>16)&255)*f), g = Math.round(((n>>8)&255)*f), b = Math.round((n&255)*f);
+  return `rgb(${r},${g},${b})`;
+}
+function buildFrame(grid, cat, closed=false){
+  const H = grid.length, W = grid[0].length, seed = cat.seed;
   // 1) mapa de colores por celda
   const cells = [];
   for(let y=0;y<H;y++){
@@ -530,17 +640,19 @@ function buildFrame(grid, cat){
     for(let x=0;x<W;x++){
       const ch = grid[y][x];
       let c = null;
-      if(ch==='b'){
-        c = cat.fur;
+      if(ch==='b' || ch==='d'){
+        let base = cat.fur, pat = false;
         // aplicar patrón (determinista por coordenada + semilla)
         const p = cat.pattern;
-        if(p==='rayas'   && x%3===0 && y<10) c = cat.patternColor;
-        if(p==='atigrado'&& (x+y)%4===0)     c = cat.patternColor;
-        if(p==='manchas' && ((((x>>1)*31 + (y>>1)*17 + seed)>>>0) % 6)===0) c = cat.patternColor;
-        if(p==='esmoquin'&& (y>=10 || (y>=7 && y<=9 && x>=4 && x<=8))) c = '#fdfdfd';
+        if(p==='rayas'   && x%3===0 && y<13) pat = true;
+        if(p==='atigrado'&& (x+y)%4===0)     pat = true;
+        if(p==='manchas' && ((((x>>1)*31 + (y>>1)*17 + seed)>>>0) % 6)===0) pat = true;
+        if(p==='esmoquin'&& (y>=13 || (y>=9 && y<=12 && x>=3 && x<=9) || (y>=5 && y<=6 && x>=17))) base = '#fdfdfd';
+        if(pat) base = cat.patternColor;
+        c = (ch==='d') ? shade(base, 0.76) : base;
       }
       else if(ch==='i') c = '#f2a0b4';
-      else if(ch==='e') c = cat.eye;
+      else if(ch==='e') c = closed ? OUTLINE : cat.eye;
       else if(ch==='n') c = '#c96a7a';
       else if(ch==='c') c = OUTLINE;
       cells[y][x] = c;
@@ -564,14 +676,14 @@ function buildFrame(grid, cat){
   }
   return cv;
 }
+const FRAME_KEYS = ['walkA','walkB','walkC','walkD','sitA','sitB','sleep','stretch','scaredA','scaredB','kneadA','kneadB'];
 function buildSprites(cat){
-  cat.sprites = {
-    standA: buildFrame(SPR.standA, cat),
-    standB: buildFrame(SPR.standB, cat),
-    sit:    buildFrame(SPR.sit, cat),
-    sleep:  buildFrame(SPR.sleep, cat),
-  };
-  cat.avatarURL = cat.sprites.sit.toDataURL();
+  cat.sprites = {};
+  for(const k of FRAME_KEYS){
+    cat.sprites[k] = { open: buildFrame(SPR[k], cat, false), closed: buildFrame(SPR[k], cat, true) };
+  }
+  cat.portrait = buildFrame(SPR.portrait, cat, false);
+  cat.avatarURL = cat.portrait.toDataURL();
 }
 
 /* ============================================================
@@ -580,7 +692,7 @@ function buildSprites(cat){
 const cvs = document.getElementById('game');
 const ctx = cvs.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const W = 640, H = 400, SC = 2; // gatos a escala 2 → 32x24
+const W = 640, H = 400, SC = 2; // gatos a escala 2 → 48x36
 
 const world = {
   trees:[{x:90,y:130},{x:545,y:115},{x:455,y:265}],
@@ -597,6 +709,18 @@ const world = {
   time:9, // hora del día (0-24); un día completo dura DAY_LEN segundos
 };
 const DAY_LEN = 300;
+/* motas pixel: corazones y Zzz que flotan sobre los gatos */
+const motes = [];
+const HEART_PX = [[1,0],[3,0],[0,1],[1,1],[2,1],[3,1],[4,1],[0,2],[1,2],[2,2],[3,2],[4,2],[1,3],[2,3],[3,3],[2,4]];
+function spawnHearts(c, n=3){
+  for(let i=0;i<n;i++){
+    motes.push({x:c.x-10+i*9+(Math.random()*6-3), y:c.y-32-Math.random()*8,
+      t:1.3+Math.random()*0.5, ph:Math.random()*6, k:'h'});
+  }
+}
+function spawnZzz(c){
+  motes.push({x:c.x+10+(Math.random()*6-3), y:c.y-32, t:1.7, ph:Math.random()*6, k:'z', s:1+Math.random()*0.8});
+}
 /* confeti pixel para celebrar tareas completadas */
 const confetti = [];
 function burstConfetti(x, y, n=26){
@@ -695,6 +819,7 @@ class Cat{
     this.curSpeed = this.speed;
     this.doT=0; this.doSprite='sit'; this.then=null; this.tick=null;
     this.bubble=null; this.bubbleT=0; this.walkT=0; this.hop=0;
+    this.animT=this.rng()*2; this.blinkT=2+this.rng()*3; this.scaredT=0;
     this.hidden=false; this.carry=null; this.queueSlot=-1;
     this.grrCD=0; this.idleT = this.rng()*2;
     buildSprites(this);
@@ -724,12 +849,17 @@ class Cat{
     if(this.state==='queue_go'||this.state==='queue_wait') return;
     const r=this.rng;
     this.action='pasear'; this.say('!',1.2);
+    this.scaredT = 1.8; // cola esponjada + orejas atrás mientras huye
     if(this.tree){ this.y = this.tree.y+4; this.tree=null; }
     this.goTo(30+r()*580, 80+r()*290, this.speed*2.4, ()=>{ this.state='decide'; });
     this.hidden=false;
   }
   update(dt){
     this.grrCD -= dt;
+    this.animT += dt;
+    this.scaredT -= dt;
+    this.blinkT -= dt;
+    if(this.blinkT < -0.14) this.blinkT = 2.2 + this.rng()*3.5; // parpadeo
     this.bubbleT -= dt; if(this.bubbleT<=0) this.bubble=null;
     if(!sim.queueMode) this.hunger = clamp(this.hunger + dt*0.35, 0, 100);
     // gruñón pasivo: bufa a quien se acerque
@@ -810,7 +940,8 @@ class Cat{
         // el perezoso se queda dormido esperando en la cola
         if(this.personality==='perezoso' && this.qT>5){
           this.queueSleep = true;
-          if(!this.bubble && this.rng()<dt*0.4) this.say('Zzz',3);
+          this._zz = (this._zz ?? 0) - dt;
+          if(this._zz<=0){ spawnZzz(this); this._zz = 1.2+this.rng()*0.7; }
         }
         break;
     }
@@ -826,18 +957,36 @@ class Cat{
     this.action=null; this.state='decide';
     this.idleT = 0.5 + this.rng()*2;
   }
-  currentSprite(){
-    if(this.state==='do') return this.sprites[this.doSprite];
-    if(this.state==='queue_wait') return this.queueSleep ? this.sprites.sleep : this.sprites.sit;
-    if(this.state==='decide') return this.sprites.sit;
-    // caminando / persiguiendo / trepando
-    return (Math.floor(this.walkT*6)%2===0) ? this.sprites.standA : this.sprites.standB;
+  spriteFrame(){
+    const sitKey = (Math.floor(this.animT/0.7)%2) ? 'sitB' : 'sitA'; // cola meciéndose
+    let key, bob = 0;
+    if(this.state==='do'){
+      if(this.doSprite==='sit') key = sitKey;
+      else if(this.doSprite==='knead') key = (Math.floor(this.animT/0.26)%2) ? 'kneadB' : 'kneadA';
+      else key = this.doSprite; // 'sleep' | 'stretch'
+    }
+    else if(this.state==='queue_wait') key = this.queueSleep ? 'sleep' : sitKey;
+    else if(this.state==='decide') key = sitKey;
+    else {
+      // caminando / persiguiendo / trepando — 4 frames
+      const fi = Math.floor(this.walkT*7)%4;
+      if(this.scaredT>0) key = (fi%2) ? 'scaredB' : 'scaredA';
+      else key = ['walkA','walkB','walkC','walkD'][fi];
+      if(fi===1 || fi===3) bob = -1; // rebote del paso
+    }
+    return {key, bob};
   }
   draw(g){
     if(this.hidden) return;
-    const spr = this.currentSprite();
-    const w=16*SC, h=12*SC;
-    const dy = this.hop ? -Math.abs(Math.sin(performance.now()/90))*this.hop : 0;
+    const f = this.spriteFrame();
+    const fr = this.sprites[f.key] ?? this.sprites.sitA;
+    const spr = (this.blinkT<0 && f.key!=='sleep') ? fr.closed : fr.open;
+    const w=24*SC, h=18*SC;
+    const dy = (this.hop ? -Math.abs(Math.sin(performance.now()/90))*this.hop : 0) + f.bob*SC;
+    // sombra elíptica (ancla al suelo y vende los saltos)
+    g.fillStyle = 'rgba(24,18,34,0.28)';
+    g.fillRect(this.x-12, this.y-3, 24, 3);
+    g.fillRect(this.x-8,  this.y-1, 16, 2);
     g.save();
     g.translate(this.x, this.y + dy);
     if(this.dir<0) g.scale(-1,1);
@@ -845,13 +994,13 @@ class Cat{
     g.restore();
     // pez en la boca (tarea o robado)
     if(this.carry!==null && (this.state==='queue_go'||this.state==='queue_wait')){
-      drawFishShape(g, this.x + this.dir*16, this.y-13+dy, 1.6, '#6db5ff', '#2a5ca8');
+      drawFishShape(g, this.x + this.dir*20, this.y-18+dy, 1.6, '#6db5ff', '#2a5ca8');
     }
     if(this.stolen){
-      drawFishShape(g, this.x + this.dir*15, this.y-12+dy, 1.4, '#6db5ff', '#2a5ca8');
+      drawFishShape(g, this.x + this.dir*19, this.y-17+dy, 1.4, '#6db5ff', '#2a5ca8');
     }
     if(this.mouse){ // ratoncito de regalo
-      const mx = this.x + this.dir*14, my = this.y-12+dy;
+      const mx = this.x + this.dir*18, my = this.y-16+dy;
       g.fillStyle='#241c2e'; g.fillRect(mx-4, my-2, 9, 5);
       g.fillStyle='#9a93ad'; g.fillRect(mx-3, my-1, 7, 3);
       g.fillStyle='#f2a0b4'; g.fillRect(mx+(this.dir>0?4:-4), my, 2, 1);
@@ -918,9 +1067,11 @@ function startAction(cat, key){
     }
     case 'siesta': {
       const s = world.sunspots[(r()*world.sunspots.length)|0];
+      const zzzTick = (c,dt)=>{ c._zz=(c._zz??0)-dt; if(c._zz<=0){ spawnZzz(c); c._zz=1.1+c.rng()*0.7; } };
       cat.goTo(s.x-20+r()*40, s.y-12+r()*24, cat.speed, ()=>{
-        cat.say('Zzz', 4);
-        cat.doFor(9+r()*8,'sleep', null, (c,dt)=>{ if(!c.bubble && c.rng()<dt*0.4) c.say('Zzz',3); });
+        cat.doFor(9+r()*8,'sleep', ()=>{
+          cat.doFor(1.3,'stretch'); // el estirón al despertar
+        }, zzzTick);
       });
       break;
     }
@@ -993,9 +1144,9 @@ function startAction(cat, key){
       if(!targets.length){ startAction(cat,'amigo'); break; }
       const v = targets[(r()*targets.length)|0];
       cat.goTo(v.x-16*Math.sign(v.x-cat.x||1), v.y, cat.speed, ()=>{
-        cat.say('♥',2.5);
+        spawnHearts(cat,2);
         const v2 = cats.find(c=>c.id===v.id);
-        if(v2 && dist(cat.x,cat.y,v2.x,v2.y)<50) v2.say('♥',2.5);
+        if(v2 && dist(cat.x,cat.y,v2.x,v2.y)<50) spawnHearts(v2,2);
         cat.doFor(3,'sit');
       });
       break;
@@ -1009,7 +1160,7 @@ function startAction(cat, key){
     }
     case 'usuario': {
       cat.goTo(world.player.x-26-r()*16, world.player.y-4+r()*8, cat.speed, ()=>{
-        cat.dir=1; cat.say('purr…',3); cat.doFor(7+r()*4,'sit');
+        cat.dir=1; cat.say('purr…',3); spawnHearts(cat,2); cat.doFor(7+r()*4,'sit');
       });
       break;
     }
@@ -1026,7 +1177,7 @@ function startAction(cat, key){
         if(world.bowl.fish>0){
           world.bowl.fish--; updateBowlInfo();
           cat.say('ñam!',2); cat.hunger=0;
-          cat.doFor(2.2,'sit', ()=>{ cat.say('♥',2); cat.endAction(); });
+          cat.doFor(2.2,'sit', ()=>{ spawnHearts(cat); cat.endAction(); });
         } else cat.endAction();
       });
       break;
@@ -1067,9 +1218,10 @@ function startAction(cat, key){
     }
     case 'amasar': {
       cat.goTo(world.player.x-18-r()*18, world.player.y+r()*6, cat.speed, ()=>{
-        cat.dir=1; cat.say('♥',2); cat.hop=2;
-        cat.doFor(6+r()*4,'sit', null, (c,dt)=>{
+        cat.dir=1; spawnHearts(cat,2);
+        cat.doFor(6+r()*4,'knead', null, (c,dt)=>{
           if(!c.bubble && c.rng()<dt*0.35) c.say('purr…',2);
+          if(c.rng()<dt*0.15) spawnHearts(c,1);
         });
       });
       break;
@@ -1149,6 +1301,12 @@ function updateAmbient(dt){
     p.t -= dt; p.vy += 220*dt;
     p.x += p.vx*dt; p.y += p.vy*dt;
     if(p.t<=0) confetti.splice(i,1);
+  }
+  // motas (corazones / Zzz)
+  for(let i=motes.length-1;i>=0;i--){
+    const p = motes[i];
+    p.t -= dt; p.y -= 13*dt;
+    if(p.t<=0) motes.splice(i,1);
   }
   // pez que salta
   const pf = world.pondFish;
@@ -1265,6 +1423,22 @@ function drawWorld(){
   }
   // confeti
   for(const p of confetti){ ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, 3, 3); }
+  // motas: corazones y Zzz pixel
+  for(const p of motes){
+    ctx.globalAlpha = Math.min(1, p.t/0.5);
+    const wob = Math.sin((1.7-p.t)*4 + p.ph)*3;
+    if(p.k==='h'){
+      ctx.fillStyle = '#ff5f8a';
+      for(const [hx,hy] of HEART_PX) ctx.fillRect(p.x+wob+hx*2-5, p.y+hy*2-5, 2, 2);
+    } else {
+      const u = Math.round(2*p.s);
+      ctx.fillStyle = '#dfe8ff';
+      ctx.fillRect(p.x+wob, p.y, u*3, u);
+      ctx.fillRect(p.x+wob+u, p.y+u, u, u);
+      ctx.fillRect(p.x+wob, p.y+u*2, u*3, u);
+    }
+    ctx.globalAlpha = 1;
+  }
   // ---- ciclo día/noche ----
   const L = lightLevel();
   if(L < 0.98){
@@ -1347,7 +1521,7 @@ function setTaskState(id, st){
     burstConfetti(world.bowl.x, world.bowl.y-14, 30);
     // el gato que la cargaba en la cola celebra
     const carrier = cats.find(c=>c.carry===id);
-    if(carrier){ carrier.say('♥',2.5); carrier.carry=null; burstConfetti(carrier.x, carrier.y-22, 14); }
+    if(carrier){ spawnHearts(carrier); carrier.carry=null; burstConfetti(carrier.x, carrier.y-22, 14); }
     // el michi responsable (o el más hambriento) corre a comerse el pez
     if(!sim.queueMode){
       const eater = cats.find(c=>c.id===tk.catId) ??
@@ -1355,7 +1529,7 @@ function setTaskState(id, st){
       if(eater){
         if(eater.tree){ eater.y = eater.tree.y+4; eater.tree=null; }
         eater.hidden=false; eater.hop=0; eater.tick=null; eater.then=null;
-        eater.say('♥',2);
+        spawnHearts(eater,2);
         startAction(eater,'comer');
       }
     }
@@ -1481,8 +1655,8 @@ function enterQueueMode(){
     if(tk) taken.add(tk.id);
     c.carry = tk ? tk.id : null;
     c.queueSlot = i;
-    const col = i%10, row = Math.floor(i/10);
-    const sx = 545 - col*48, sy = 352 - row*42;
+    const col = i%9, row = Math.floor(i/9);
+    const sx = 540 - col*54, sy = 352 - row*46;
     c.waypoints = [{x:sx, y:sy}];
     c.curSpeed = c.speed*1.6;
     c.state = 'queue_go';
@@ -1560,7 +1734,7 @@ function renderCats(){
     const hpct = Math.round(c.hunger);
     const hcol = hpct>75?'var(--red)':hpct>45?'var(--acc)':'var(--green)';
     html += `<div class="catCard">
-      <canvas data-cat="${c.id}" width="32" height="24"></canvas>
+      <canvas data-cat="${c.id}" width="16" height="16"></canvas>
       <div class="info">
         <div class="nm">${esc(c.name)}</div>
         <div class="ps">${P.em} ${P.name}</div>
@@ -1579,7 +1753,7 @@ function renderCats(){
     if(!c) continue;
     const g = cv2.getContext('2d');
     g.imageSmoothingEnabled=false;
-    g.drawImage(c.sprites.standA, 8, 6, 16, 12);
+    g.drawImage(c.portrait, 0, 0, 16, 16);
   }
 }
 panelCats.addEventListener('click', e=>{
@@ -1638,12 +1812,12 @@ function refreshModal(){
   document.getElementById('patColorRow').style.opacity = (draft.pattern==='liso'||draft.pattern==='esmoquin')?0.35:1;
   // preview
   const fake = {fur:draft.fur, pattern:draft.pattern, patternColor:draft.patternColor, eye:draft.eye, seed:hashStr(draft.name||'michi')};
-  const frame = buildFrame(SPR.standA, fake);
+  const frame = buildFrame(SPR.sitA, fake);
   const pv = document.getElementById('preview');
   const g = pv.getContext('2d');
   g.imageSmoothingEnabled=false;
   g.clearRect(0,0,32,24);
-  g.drawImage(frame, 8, 6, 16, 12);
+  g.drawImage(frame, 4, 3, 24, 18);
 }
 function openModal(cat){
   editingCat = cat ?? null;
@@ -1853,10 +2027,10 @@ cvs.addEventListener('pointercancel', gestureEnd);
 
 // tocar/clicar gatos: acariciar o recuperar pescado robado
 function tapAt(x, y){
-  let best=null, bd=26;
+  let best=null, bd=32;
   for(const c of cats){
     if(c.hidden) continue;
-    const d = dist(x, y, c.x, c.y-12);
+    const d = dist(x, y, c.x, c.y-16);
     if(d<bd){ bd=d; best=c; }
   }
   if(!best) return;
@@ -1865,7 +2039,8 @@ function tapAt(x, y){
     toast('🐟 ¡Recuperaste el pescado robado!');
     best.flee();
   } else if(best.state!=='queue_go'){
-    best.say(['♥','purr…','miau'][(Math.random()*3)|0], 2);
+    spawnHearts(best, 2);
+    if(Math.random()<0.4) best.say(['purr…','miau'][(Math.random()*2)|0], 2);
   }
 }
 /* ============================================================
