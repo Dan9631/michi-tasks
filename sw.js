@@ -1,6 +1,8 @@
 /* Service Worker de Michi Tasks
-   Sube el número de versión cada vez que publiques cambios
-   para que los usuarios reciban la app nueva. */
+   Las actualizaciones fluyen solas: la página usa red-primero y los
+   recursos usan stale-while-revalidate (se sirven del caché y se
+   refrescan en segundo plano). Solo sube la versión si renombras
+   o eliminas archivos y quieres purgar el caché viejo. */
 const CACHE = 'michi-tasks-v1';
 const ASSETS = [
   './',
@@ -43,17 +45,18 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Resto (iconos, fuentes…): caché primero, y lo que llegue de red se guarda
+  // Resto (iconos, fuentes…): stale-while-revalidate — se sirve del
+  // caché al instante y se refresca desde la red en segundo plano
   e.respondWith(
     caches.match(e.request).then(hit => {
-      if (hit) return hit;
-      return fetch(e.request).then(resp => {
+      const refresh = fetch(e.request).then(resp => {
         if (resp && (resp.ok || resp.type === 'opaque')) {
           const copy = resp.clone();
           caches.open(CACHE).then(c => c.put(e.request, copy));
         }
         return resp;
-      });
+      }).catch(() => hit);
+      return hit || refresh;
     })
   );
 });

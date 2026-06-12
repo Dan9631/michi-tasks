@@ -34,7 +34,7 @@ Para probar desde tu teléfono en la misma red: `http://<ip-de-tu-pc>:8000` (sin
 
 Todas las rutas son relativas, así que funciona en cualquier subcarpeta.
 
-> ⚠️ Cuando publiques cambios, sube el número de versión en `sw.js` (`michi-tasks-v1` → `v2`) para que los usuarios instalados reciban la app nueva.
+> ℹ️ Las actualizaciones llegan solas a los usuarios: la página usa *red-primero* y los recursos *stale-while-revalidate* (se refrescan en segundo plano). Solo necesitas subir la versión en `sw.js` (`michi-tasks-v1` → `v2`) si **renombras o eliminas** archivos y quieres purgar el caché viejo.
 
 ## 📱 Instalar en el teléfono
 
