@@ -125,7 +125,7 @@
   .addRow input:focus{border-color:var(--acc);}
   .colTitle{font-size:10px; margin:14px 0 8px; padding-bottom:5px; border-bottom:3px solid var(--line);}
   .colTitle.p{color:var(--blue);} .colTitle.e{color:var(--acc);} .colTitle.f{color:var(--dim);}
-  .fishCard{position:relative; height:84px; margin:0 0 12px 0; display:flex; filter:drop-shadow(3px 3px 0 #00000066);}
+  .fishCard{position:relative; height:84px; margin:0 0 12px 0; display:flex; filter:drop-shadow(3px 3px 0 #00000066); touch-action:pan-y;}
   .fishTail{
     width:30px; flex-shrink:0; align-self:center; height:62px; position:relative;
   }
@@ -227,6 +227,27 @@
     color:var(--green); padding:12px 16px; font-size:10px; display:none; z-index:60;
   }
   /* ---------- responsive móvil ---------- */
+  /* ---------- modo acuario: solo el mapa, para mirar michis ---------- */
+  body.aqua header, body.aqua aside{display:none;}
+  body.aqua #stage{height:100dvh !important; padding:0;}
+  body.aqua canvas#game{border:none; max-width:none;}
+  body.aqua #zoomCtrls #zSize{display:none !important;}
+  /* ---------- tarjeta del gato seguido ---------- */
+  #followCard{
+    position:absolute; left:14px; bottom:14px; z-index:6;
+    display:flex; gap:10px; align-items:center; max-width:280px;
+    background:var(--panel); border:3px solid var(--acc); padding:8px 10px;
+  }
+  #followCard[hidden]{display:none;}
+  #followCard img{width:42px; height:42px; image-rendering:pixelated; background:#4c8a3d; border:2px solid var(--line); flex-shrink:0;}
+  #fcName{font-size:10px; color:var(--acc); margin-bottom:3px;}
+  #fcPers{font-family:var(--fontB); font-size:14px; color:var(--dim); line-height:1.1;}
+  #fcAct{font-family:var(--fontB); font-size:14px; color:var(--green); line-height:1.1;}
+  #followCard .hungerBar{margin-top:4px; width:120px;}
+  #fcClose{
+    font-family:inherit; font-size:10px; width:26px; height:26px; cursor:pointer;
+    background:var(--panel2); color:var(--txt); border:2px solid var(--line); flex-shrink:0;
+  }
   #zoomCtrls #zSize{display:none;} /* solo móvil */
   @media (max-width:900px){
     body{font-size:10px;}
@@ -239,6 +260,11 @@
     .catCard .ops .mini{font-size:14px; padding:8px 10px;}
     #toast{left:10px; right:10px; bottom:auto; top:8px; text-align:center;}
     canvas#game{border-width:3px;}
+    /* navegación inferior: las pestañas viven donde vive el pulgar */
+    .tabs{order:3;}
+    .panel{order:1;}
+    .tabs button{border-bottom:none; border-top:4px solid var(--line); padding:12px 4px max(12px, env(safe-area-inset-bottom));}
+    .tabs button.on{border-top-color:var(--acc);}
     aside{width:100%; flex:1; border-left:none; border-top:4px solid var(--line); min-height:0;}
     header{padding:8px 10px; gap:8px;}
     header h1{font-size:12px;}
@@ -302,10 +328,21 @@
       <div style="text-align:right"><button class="btn" id="btnCloseDrawer">Cerrar (los gatos vuelven a lo suyo)</button></div>
     </div>
     <div id="zoomCtrls">
+      <button id="zAqua" title="Modo acuario (solo mirar michis)">◎</button>
       <button id="zIn" title="Acercar">＋</button>
       <button id="zOut" title="Alejar">－</button>
       <button id="zReset" title="Ver todo">⛶</button>
       <button id="zSize" title="Tamaño del mapa">⇕</button>
+    </div>
+    <div id="followCard" hidden>
+      <img id="fcImg" alt="">
+      <div>
+        <div id="fcName"></div>
+        <div id="fcPers"></div>
+        <div id="fcAct"></div>
+        <div class="hungerBar"><i id="fcHun"></i></div>
+      </div>
+      <button id="fcClose" title="Dejar de seguir">✕</button>
     </div>
   </div>
   <aside>
@@ -1459,8 +1496,8 @@ function drawWorld(){
     }
   }
   ctx.setTransform(1,0,0,1,0,0);
-  // HUD en el mapa (móvil): reloj + peces del plato
-  if(window.innerWidth <= 900){
+  // HUD en el mapa (móvil y modo acuario): reloj + peces del plato
+  if(window.innerWidth <= 900 || document.body.classList.contains('aqua')){
     const hud = `${lastClock}  🐟${world.bowl.fish}`;
     ctx.font = '10px monospace';
     const tw = ctx.measureText(hud).width;
@@ -1625,6 +1662,51 @@ function startEditTask(el, id){
 }
 document.getElementById('taskCols').addEventListener('click', handleTaskOp);
 document.getElementById('drawerCards').addEventListener('click', handleTaskOp);
+
+/* ---------- swipe en los peces: → avanza estado, ← elimina ---------- */
+function attachSwipe(container){
+  let card=null, sx=0, sy=0, dx=0, pid=null, active=false;
+  container.addEventListener('pointerdown', e=>{
+    const c = e.target.closest('.fishCard');
+    if(!c || e.target.closest('button') || e.target.closest('.assign') || e.target.closest('.editInp')) return;
+    card=c; sx=e.clientX; sy=e.clientY; dx=0; pid=e.pointerId; active=false;
+  });
+  container.addEventListener('pointermove', e=>{
+    if(!card || e.pointerId!==pid) return;
+    dx = e.clientX - sx;
+    const dy = e.clientY - sy;
+    if(!active && Math.abs(dx)>14 && Math.abs(dx)>Math.abs(dy)){
+      active = true;
+      try{ card.setPointerCapture(pid); }catch(_){}
+    }
+    if(active){
+      card.style.transform = `translateX(${dx}px)`;
+      card.style.opacity = String(Math.max(0.35, 1-Math.abs(dx)/280));
+    }
+  });
+  const end = e=>{
+    if(!card || e.pointerId!==pid) return;
+    const c = card; card=null;
+    const tid = +(c.querySelector('.t[data-tid]')?.dataset.tid ?? 0);
+    const tk = tasks.find(t=>t.id===tid);
+    if(active && tk){
+      if(dx > 70){ // avanzar: pendiente→en curso→finalizado (finalizado→reabrir)
+        setTaskState(tid, tk.state==='pendiente' ? 'encurso' : tk.state==='encurso' ? 'finalizado' : 'encurso');
+        return; // el re-render limpia los estilos
+      }
+      if(dx < -70){
+        if(confirm(`¿Eliminar el pez "${tk.title}"?`)){ deleteTask(tid); return; }
+      }
+    }
+    c.style.transition = 'transform .15s, opacity .15s';
+    c.style.transform = ''; c.style.opacity = '';
+    setTimeout(()=>{ c.style.transition=''; }, 180);
+  };
+  container.addEventListener('pointerup', end);
+  container.addEventListener('pointercancel', end);
+}
+attachSwipe(document.getElementById('taskCols'));
+attachSwipe(document.getElementById('drawerCards'));
 document.getElementById('btnAddTask').onclick = ()=>{
   const inp = document.getElementById('taskInput');
   addTask(inp.value); inp.value=''; inp.focus();
@@ -1714,6 +1796,11 @@ function showTab(key){
 document.getElementById('tabTasks').onclick = ()=>showTab('tasks');
 document.getElementById('tabCats').onclick  = ()=>showTab('cats');
 document.getElementById('tabMore').onclick  = ()=>showTab('more');
+// ◎ modo acuario: pantalla completa solo-mapa para mirar a los michis
+document.getElementById('zAqua').onclick = ()=>{
+  const on = document.body.classList.toggle('aqua');
+  document.getElementById('zAqua').textContent = on ? '✕' : '◎';
+};
 // ⇕ alterna el tamaño del mapa en móvil: medio → grande → chico → medio
 document.getElementById('zSize').onclick = ()=>{
   const b = document.body.classList;
@@ -1946,6 +2033,7 @@ function frame(now){
   if(ck!==lastClock){ document.getElementById('clock').textContent = ck; lastClock = ck; }
   updateAmbient(dt);
   for(const c of cats) c.update(dt);
+  followTick(dt);
   drawWorld();
   requestAnimationFrame(frame);
 }
@@ -1965,7 +2053,40 @@ function zoomBy(f){
 }
 document.getElementById('zIn').onclick  = ()=>zoomBy(1.3);
 document.getElementById('zOut').onclick = ()=>zoomBy(1/1.3);
-document.getElementById('zReset').onclick = ()=>{ cam.z=1; cam.x=0; cam.y=0; };
+document.getElementById('zReset').onclick = ()=>{ setFollow(null); cam.z=1; cam.x=0; cam.y=0; };
+
+/* ---------- seguir a un gato (doble toque) ---------- */
+function setFollow(c){
+  sim.follow = c ?? null;
+  const fc = document.getElementById('followCard');
+  if(c){
+    cam.z = Math.max(cam.z, 2.2); clampCam();
+    document.getElementById('fcImg').src = c.avatarURL;
+    sim._fcT = 0; // refresca la tarjeta ya
+    fc.hidden = false;
+  } else fc.hidden = true;
+}
+document.getElementById('fcClose').onclick = ()=>setFollow(null);
+function followTick(dt){
+  const f = sim.follow;
+  if(!f) return;
+  if(!cats.includes(f)){ setFollow(null); return; }
+  const k = Math.min(1, dt*6);
+  cam.x += (f.x - W/(2*cam.z) - cam.x)*k;
+  cam.y += (f.y - 14 - H/(2*cam.z) - cam.y)*k;
+  clampCam();
+  sim._fcT = (sim._fcT ?? 0) - dt;
+  if(sim._fcT <= 0){
+    sim._fcT = 0.4;
+    const P = PERSONALITIES[f.personality];
+    document.getElementById('fcName').textContent = f.name;
+    document.getElementById('fcPers').textContent = `${P.em} ${P.name}`;
+    document.getElementById('fcAct').textContent = ACTION_LABEL[f.action] ?? (f.state==='decide' ? '🤔 Decidiendo…' : '🚶 Caminando');
+    const h = document.getElementById('fcHun');
+    h.style.width = Math.round(f.hunger)+'%';
+    h.style.background = f.hunger>75 ? 'var(--red)' : f.hunger>45 ? 'var(--acc)' : 'var(--green)';
+  }
+}
 cvs.addEventListener('wheel', e=>{ e.preventDefault(); zoomBy(e.deltaY<0 ? 1.15 : 1/1.15); }, {passive:false});
 
 function screenToWorld(clientX, clientY){
@@ -1997,6 +2118,7 @@ cvs.addEventListener('pointermove', e=>{
   p.x = e.clientX; p.y = e.clientY;
   if(Math.hypot(p.x-p.sx, p.y-p.sy) > 9) gestureMoved = true;
   if(ptrs.size===1 && cam.z>1){
+    if(gestureMoved && sim.follow) setFollow(null); // el pan manual libera la cámara
     const r = cvs.getBoundingClientRect();
     const s = Math.min(r.width/W, r.height/H);
     cam.x -= dx/s/cam.z;
@@ -2034,6 +2156,14 @@ function tapAt(x, y){
     if(d<bd){ bd=d; best=c; }
   }
   if(!best) return;
+  // doble toque → seguir / dejar de seguir a ese gato
+  const now2 = performance.now();
+  if(best===sim._lastTapCat && now2 - (sim._lastTapT ?? 0) < 380){
+    setFollow(sim.follow===best ? null : best);
+    sim._lastTapCat = null;
+    return;
+  }
+  sim._lastTapCat = best; sim._lastTapT = now2;
   if(best.stolen){
     best.stolen=false; world.bowl.fish++; updateBowlInfo();
     toast('🐟 ¡Recuperaste el pescado robado!');
