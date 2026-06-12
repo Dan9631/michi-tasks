@@ -66,9 +66,22 @@
   .btn.primary:hover{background:#94621f;}
   .btn.blue{background:#1d3f7a; border-color:var(--blue); color:#d8edff;}
   .btn.blue:hover{background:#24508f;}
-  #bowlInfo,#clock,#streakChip{font-size:10px; color:var(--blue); padding:6px 10px; border:3px dashed var(--line); white-space:nowrap;}
+  #bowlInfo,#clock,#streakChip,#coinChip{font-size:10px; color:var(--blue); padding:6px 10px; border:3px dashed var(--line); white-space:nowrap;}
   #clock{color:var(--acc);}
   #streakChip{color:var(--red);}
+  #coinChip{color:#d8b13a;}
+  /* ---------- tienda ---------- */
+  #coinBar{font-size:11px; color:var(--acc); padding:10px; border:3px dashed var(--line); margin-bottom:14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  #coinBar .coinHint{font-family:var(--fontB); font-size:14px; color:var(--dim); line-height:1.1;}
+  .shopItem{display:flex; gap:10px; align-items:center; background:var(--panel2); border:3px solid var(--line); padding:8px; margin-bottom:10px;}
+  .shopItem.owned{border-color:var(--green);}
+  .shopPrev{width:48px; height:48px; image-rendering:pixelated; background:#4c8a3d; border:2px solid var(--line); flex-shrink:0;}
+  .siInfo{flex:1; min-width:0;}
+  .siName{font-size:10px; color:var(--txt); margin-bottom:4px;}
+  .siDesc{font-family:var(--fontB); font-size:15px; color:var(--dim); line-height:1.1;}
+  .ownedTag{font-family:var(--fontB); font-size:15px; color:var(--green); white-space:nowrap;}
+  .wearChip{font-family:var(--fontB); font-size:14px; color:var(--acc); cursor:pointer; border:2px dashed var(--line); padding:5px 8px; white-space:nowrap;}
+  .wearChip:hover{border-color:var(--acc);}
   /* ---------- toggle hábito + resumen del día ---------- */
   .addRow #recurToggle{font-size:8px; padding:0 8px; white-space:nowrap;}
   .addRow #recurToggle.on{color:var(--acc); border-color:var(--acc);}
@@ -285,7 +298,7 @@
     body.map-s #stage{height:28dvh;}
     body.map-l #stage{height:62dvh;}
     #zoomCtrls #zSize{display:block;}
-    #clock, #bowlInfo, #streakChip{display:none;} /* el HUD del mapa los reemplaza */
+    #clock, #bowlInfo, #streakChip, #coinChip{display:none;} /* el HUD del mapa los reemplaza */
     .addRow #recurToggle{font-size:7px;}
     .catCard .ops .mini{font-size:14px; padding:8px 10px;}
     #toast{left:10px; right:10px; bottom:auto; top:8px; text-align:center;}
@@ -344,6 +357,7 @@
   <h1>🐱 MICHI TASKS</h1>
   <span class="sub" style="font-size:8px;color:var(--dim)">simulador 8-bit de gatos y tareas</span>
   <span class="spacer"></span>
+  <span id="coinChip" title="Monedas para la tienda">🪙0</span>
   <span id="streakChip" title="Racha de días con tareas completadas">🔥0</span>
   <span id="clock">🌞 09:00</span>
   <span id="bowlInfo">🍽 plato: 0🐟</span>
@@ -380,6 +394,7 @@
     <div class="tabs">
       <button id="tabTasks" class="on">🐟 Tareas<span class="badge" id="taskBadge" hidden></span></button>
       <button id="tabCats">🐱 Gatos</button>
+      <button id="tabShop">🛒 Tienda</button>
       <button id="tabMore" title="Más opciones">⚙</button>
     </div>
     <div class="panel" id="panelCats"></div>
@@ -390,6 +405,12 @@
         <button class="btn primary" id="btnAddTask">+</button>
       </div>
       <div id="taskCols"></div>
+    </div>
+    <div class="panel" id="panelShop">
+      <div id="coinBar">🪙 <b id="coinN">0</b> monedas
+        <span class="coinHint">completa tareas para ganar más — los hábitos con racha pagan extra</span>
+      </div>
+      <div id="shopList"></div>
     </div>
     <div class="panel" id="panelMore">
       <div class="colTitle e">📊 TU RACHA</div>
@@ -1147,6 +1168,9 @@ class Cat{
     if(this.dir<0) g.scale(-1,1);
     g.drawImage(spr, -w/2, -h, w, h);
     g.restore();
+    // accesorio puesto (tienda)
+    const wearId = eco.wear[this.id];
+    if(wearId && !this.hidden) drawAccessory(g, wearId, this, f.key, dy);
     // pez en la boca (tarea o robado)
     if(this.carry!==null && (this.state==='queue_go'||this.state==='queue_wait')){
       drawFishShape(g, this.x + this.dir*20, this.y-18+dy, 1.6, '#6db5ff', '#2a5ca8');
@@ -1179,6 +1203,40 @@ class Cat{
     ctx.fillStyle = '#fffdf5';
     ctx.fillText(this.name, this.x, this.y+8);
     ctx.textAlign='left';
+  }
+}
+
+/* accesorios de la tienda dibujados sobre el gato */
+function drawAccessory(g, id, cat, key, dy){
+  const yTop = cat.y + dy - 36;
+  let hy = yTop;                 // borde superior de la cabeza
+  if(key==='sleep') hy = yTop+10;
+  else if(key==='stretch') hy = yTop+16;
+  const dir = cat.dir;
+  const hx = cat.x + dir*11;     // centro aproximado de la cabeza
+  const col = SHOP_BY[id]?.color ?? '#fff';
+  if(id==='band_r' || id==='band_b'){
+    const ny = hy+13;
+    g.fillStyle='#241c2e'; g.fillRect(hx-7, ny-1, 14, 5);
+    g.fillStyle=col; g.fillRect(hx-6, ny, 12, 3);
+    g.fillRect(hx - dir*7, ny+3, 4, 4);
+  } else if(id==='mono'){
+    const mx = hx - dir*7;
+    g.fillStyle='#241c2e'; g.fillRect(mx-5, hy-1, 11, 7);
+    g.fillStyle=col; g.fillRect(mx-4, hy, 4, 5); g.fillRect(mx+1, hy, 4, 5);
+    g.fillStyle='#fff'; g.fillRect(mx, hy+2, 1, 2);
+  } else if(id==='gorro'){
+    for(let i=0;i<5;i++){
+      const w2 = 2+i*2;
+      g.fillStyle=col; g.fillRect(hx-w2/2, hy-10+i*2, w2, 2);
+    }
+    g.fillStyle='#fff'; g.fillRect(hx-1, hy-12, 3, 3);
+  } else if(id==='corona'){
+    g.fillStyle='#241c2e'; g.fillRect(hx-7, hy-7, 14, 8);
+    g.fillStyle=col;
+    g.fillRect(hx-6, hy-2, 12, 3);
+    g.fillRect(hx-6, hy-5, 3, 3); g.fillRect(hx-1, hy-6, 3, 4); g.fillRect(hx+3, hy-5, 3, 3);
+    g.fillStyle='#d84a4a'; g.fillRect(hx-1, hy-8, 2, 2);
   }
 }
 
@@ -1221,7 +1279,10 @@ function startAction(cat, key){
       break;
     }
     case 'siesta': {
-      const s = world.sunspots[(r()*world.sunspots.length)|0];
+      const spots = world.sunspots.slice();
+      if(ecoOwns('cama'))   spots.push({x:SHOP_BY.cama.x,   y:SHOP_BY.cama.y+4});
+      if(ecoOwns('casita')) spots.push({x:SHOP_BY.casita.x, y:SHOP_BY.casita.y+18});
+      const s = spots[(r()*spots.length)|0];
       const zzzTick = (c,dt)=>{ c._zz=(c._zz??0)-dt; if(c._zz<=0){ spawnZzz(c); c._zz=1.1+c.rng()*0.7; } };
       cat.goTo(s.x-20+r()*40, s.y-12+r()*24, cat.speed, ()=>{
         cat.doFor(9+r()*8,'sleep', ()=>{
@@ -1447,10 +1508,12 @@ function updateAmbient(dt){
     world.birdTimer -= dt;
     if(world.birdTimer<=0 && !isNight()){ spawnBird(); world.birdTimer = 14+Math.random()*14; }
   }
-  // luciérnagas (solo de noche)
+  // luciérnagas (solo de noche; el farol las atrae)
   if(isNight()){
+    const farol = ecoOwns('farol') ? SHOP_BY.farol : null;
     for(const f of world.fireflies){
       f.t += dt;
+      if(farol){ f.ax += (farol.x - f.ax)*dt*0.06; f.ay += (farol.y-26 - f.ay)*dt*0.06; }
       f.x = f.ax + Math.sin(f.t*0.8)*40;
       f.y = f.ay + Math.cos(f.t*0.6)*22 + Math.sin(f.t*1.7)*8;
       if(Math.random()<dt*0.04){ f.ax = clamp(f.ax+(Math.random()*140-70),50,590); f.ay = clamp(f.ay+(Math.random()*90-45),85,340); }
@@ -1510,6 +1573,19 @@ function drawWorld(){
   // cámara: zoom + desplazamiento
   ctx.setTransform(cam.z, 0, 0, cam.z, -cam.x*cam.z, -cam.y*cam.z);
   ctx.drawImage(bgCv,0,0);
+  // banderines sobre la cerca (tienda)
+  if(ecoOwns('banderines')){
+    ctx.fillStyle='#3d2d52';
+    ctx.fillRect(0, 38, W, 2);
+    const cols = ['#d84a4a','#ffd23f','#3a78d8','#3f9e58','#ff8ab8'];
+    for(let x=6; x<W; x+=22){
+      const sag = Math.sin(x*0.4)*1.5;
+      ctx.fillStyle = cols[(x/22|0)%5];
+      ctx.fillRect(x, 40+sag, 10, 5);
+      ctx.fillRect(x+2, 45+sag, 6, 3);
+      ctx.fillRect(x+4, 48+sag, 2, 2);
+    }
+  }
   // estanque
   const p = world.pond;
   pxEllipse(ctx,p.cx,p.cy,p.rx+4,p.ry+4,'#3a5a8c');
@@ -1519,6 +1595,15 @@ function drawWorld(){
   ctx.fillStyle='#a8c8ee';
   ctx.fillRect(p.cx-30+Math.sin(t)*8, p.cy+6, 14, 2);
   ctx.fillRect(p.cx+10+Math.cos(t*1.3)*8, p.cy-10, 12, 2);
+  // lirios de agua (tienda)
+  if(ecoOwns('lirios')){
+    const pads = [[p.cx-34,p.cy-14],[p.cx+26,p.cy+12],[p.cx+8,p.cy-20]];
+    pads.forEach((pd,i)=>{
+      pxEllipse(ctx, pd[0]+Math.sin(t*0.7+i)*2, pd[1], 8, 4, '#3f8a3a');
+      pxEllipse(ctx, pd[0]+Math.sin(t*0.7+i)*2+2, pd[1]-1, 4, 2, '#56a342');
+      if(i<2){ ctx.fillStyle = i? '#ff8ab8':'#fffdf5'; ctx.fillRect(pd[0]-2+Math.sin(t*0.7+i)*2, pd[1]-4, 4, 3); ctx.fillStyle='#ffd23f'; ctx.fillRect(pd[0]-1+Math.sin(t*0.7+i)*2, pd[1]-3, 2, 1); }
+    });
+  }
   // pez saltando
   if(world.pondFish.t>0){
     const ft = 1-(world.pondFish.t/0.9);
@@ -1565,6 +1650,45 @@ function drawWorld(){
       ctx.fillStyle='#3f7a32'; ctx.fillRect(pt.x-2, pt.y-15, 4, 7);
       ctx.fillStyle='#56a342'; ctx.fillRect(pt.x-6, pt.y-14, 4, 3); ctx.fillRect(pt.x+2, pt.y-14, 4, 3);
     }
+  }
+  // decoraciones compradas
+  if(ecoOwns('cama')){
+    const it = SHOP_BY.cama;
+    shadowEll(it.x, it.y+7, 26);
+    pxEllipse(ctx, it.x, it.y, 15, 8, '#8a3f5c');
+    pxEllipse(ctx, it.x, it.y-2, 12, 6, '#c95f86');
+    ctx.fillStyle='#ffd1e8'; ctx.fillRect(it.x-3, it.y-4, 6, 2);
+  }
+  if(ecoOwns('casita')){
+    const it = SHOP_BY.casita;
+    shadowEll(it.x, it.y+15, 42);
+    ctx.fillStyle='#241c2e'; ctx.fillRect(it.x-17, it.y-12, 34, 28);
+    ctx.fillStyle='#b08a54'; ctx.fillRect(it.x-15, it.y-10, 30, 24);
+    for(let i=0;i<6;i++){ ctx.fillStyle = i%2?'#c95f3f':'#a8452a'; ctx.fillRect(it.x-17+i*2, it.y-12-i, 34-i*4, 3); }
+    pxCircle(ctx, it.x, it.y+5, 7, '#241c2e');
+  }
+  if(ecoOwns('fuente')){
+    const it = SHOP_BY.fuente;
+    shadowEll(it.x, it.y+8, 36);
+    pxEllipse(ctx, it.x, it.y+2, 17, 8, '#55506b');
+    pxEllipse(ctx, it.x, it.y, 14, 6, '#8d8da1');
+    pxEllipse(ctx, it.x, it.y, 10, 4, '#6d9bd8');
+    const ft = performance.now()/130;
+    ctx.fillStyle='#a8c8ee';
+    ctx.fillRect(it.x-1, it.y-20, 3, 18);
+    ctx.fillRect(it.x-4+Math.sin(ft)*2, it.y-14, 2, 4);
+    ctx.fillRect(it.x+3+Math.cos(ft)*2, it.y-12, 2, 4);
+    ctx.fillStyle='#e8f2ff'; ctx.fillRect(it.x-2, it.y-21, 5, 2);
+  }
+  if(ecoOwns('farol')){
+    const it = SHOP_BY.farol;
+    shadowEll(it.x, it.y+2, 16);
+    ctx.fillStyle='#241c2e'; ctx.fillRect(it.x-2, it.y-26, 5, 28);
+    ctx.fillStyle='#55506b'; ctx.fillRect(it.x-1, it.y-25, 3, 26);
+    ctx.fillStyle='#241c2e'; ctx.fillRect(it.x-5, it.y-34, 11, 9);
+    ctx.fillStyle = isNight() ? '#ffe9a0' : '#d8c870';
+    ctx.fillRect(it.x-3, it.y-32, 7, 6);
+    ctx.fillStyle='#55506b'; ctx.fillRect(it.x-6, it.y-35, 13, 2);
   }
   // árboles
   for(const tr of world.trees){
@@ -1668,6 +1792,13 @@ function drawWorld(){
     }
   }
   if(isNight()){
+    // halo cálido del farol
+    if(ecoOwns('farol')){
+      const it = SHOP_BY.farol;
+      ctx.fillStyle='rgba(255,222,130,0.10)'; pxCircle(ctx, it.x, it.y-28, 44, ctx.fillStyle);
+      ctx.fillStyle='rgba(255,230,150,0.14)'; pxCircle(ctx, it.x, it.y-28, 28, ctx.fillStyle);
+      ctx.fillStyle='rgba(255,240,180,0.20)'; pxCircle(ctx, it.x, it.y-29, 14, ctx.fillStyle);
+    }
     for(const f of world.fireflies){
       const bl = (Math.sin(f.t*2.5)+1)/2;
       if(bl>0.3){
@@ -1679,7 +1810,7 @@ function drawWorld(){
   ctx.setTransform(1,0,0,1,0,0);
   // HUD en el mapa (móvil y modo acuario): reloj + peces del plato
   if(window.innerWidth <= 900 || document.body.classList.contains('aqua')){
-    const hud = `${lastClock}  🐟${world.bowl.fish}  🔥${stats.streak}`;
+    const hud = `${lastClock}  🐟${world.bowl.fish}  🔥${stats.streak}  🪙${eco.coins}`;
     ctx.font = '10px monospace';
     const tw = ctx.measureText(hud).width;
     ctx.fillStyle = 'rgba(20,16,40,0.62)';
@@ -1710,6 +1841,29 @@ function dateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStar
 function todayStr(){ return dateStr(new Date()); }
 function yesterdayStr(){ return dateStr(new Date(Date.now()-86400000)); }
 let stats = {streak:0, best:0, lastActive:null, lastRollover:null, history:{}};
+/* ---------- economía: monedas, tienda, accesorios ---------- */
+let eco = {coins:80, owned:[], wear:{}}; // wear: catId -> itemId
+const SHOP = [
+  {id:'cama',       cat:'jardin', name:'Cojín elegante',    desc:'Un rincón mullido más para la siesta', price:120, x:240, y:135},
+  {id:'farol',      cat:'jardin', name:'Farol de jardín',   desc:'Ilumina la noche y atrae luciérnagas', price:150, x:430, y:150},
+  {id:'lirios',     cat:'jardin', name:'Lirios de agua',    desc:'Flores flotando en el estanque',       price:90},
+  {id:'banderines', cat:'jardin', name:'Banderines',        desc:'Fiesta de color sobre la cerca',       price:100},
+  {id:'casita',     cat:'jardin', name:'Casita de gato',    desc:'Refugio acogedor para dormir',         price:250, x:570, y:210},
+  {id:'fuente',     cat:'jardin', name:'Fuente de piedra',  desc:'Agua que salta y brilla',              price:300, x:490, y:335},
+  {id:'band_r',     cat:'michi',  name:'Bandana roja',      desc:'Clásica y valiente',                   price:80,  color:'#d84a4a'},
+  {id:'band_b',     cat:'michi',  name:'Bandana azul',      desc:'Fresca como el estanque',              price:80,  color:'#3a78d8'},
+  {id:'mono',       cat:'michi',  name:'Moño rosa',         desc:'Elegancia lateral',                    price:100, color:'#ff8ab8'},
+  {id:'gorro',      cat:'michi',  name:'Gorrito festivo',   desc:'Siempre es cumpleaños de alguien',     price:140, color:'#3f9e58'},
+  {id:'corona',     cat:'michi',  name:'Coronita',          desc:'Para quien manda en el jardín',        price:200, color:'#ffd23f'},
+];
+const SHOP_BY = Object.fromEntries(SHOP.map(i=>[i.id, i]));
+const ecoOwns = id => eco.owned.includes(id);
+function updateCoinUI(){
+  const chip = document.getElementById('coinChip');
+  if(chip) chip.textContent = `🪙${eco.coins}`;
+  const n = document.getElementById('coinN');
+  if(n) n.textContent = eco.coins;
+}
 function updateStreakUI(){
   const el = document.getElementById('streakChip');
   if(el) el.textContent = `🔥${stats.streak}`;
@@ -1808,8 +1962,11 @@ function setTaskState(id, st){
     const h = stats.history[t] ?? (stats.history[t] = {done:0, habits:0, byCat:{}});
     h.done++; if(tk.recurring) h.habits++;
     if(tk.catId) h.byCat[tk.catId] = (h.byCat[tk.catId]||0)+1;
+    // monedas: los hábitos con racha pagan más
+    const earn = tk.recurring ? Math.min(10 + (tk.streak||0)*2, 30) : 10;
+    eco.coins += earn; updateCoinUI();
     world.bowl.fish++; updateBowlInfo();
-    toast('✔ ¡Tarea terminada! Un pescado cayó al plato 🍽');
+    toast(`✔ ¡Tarea terminada! +${earn}🪙 y un pescado al plato 🍽`);
     burstConfetti(world.bowl.x, world.bowl.y-14, 30);
     // el gato que la cargaba en la cola celebra
     const carrier = cats.find(c=>c.carry===id);
@@ -2051,6 +2208,7 @@ const panelTasks = document.getElementById('panelTasks');
 const TABS = {
   tasks:{btn:'tabTasks', panel:'panelTasks', on:()=>renderTasks()},
   cats: {btn:'tabCats',  panel:'panelCats',  on:()=>renderCats()},
+  shop: {btn:'tabShop',  panel:'panelShop',  on:()=>renderShop()},
   more: {btn:'tabMore',  panel:'panelMore',  on:null},
 };
 function showTab(key){
@@ -2062,7 +2220,101 @@ function showTab(key){
 }
 document.getElementById('tabTasks').onclick = ()=>showTab('tasks');
 document.getElementById('tabCats').onclick  = ()=>showTab('cats');
+document.getElementById('tabShop').onclick  = ()=>showTab('shop');
 document.getElementById('tabMore').onclick  = ()=>showTab('more');
+
+/* ---------- tienda ---------- */
+function shopItemHTML(it){
+  const owned = ecoOwns(it.id);
+  let action;
+  if(!owned){
+    action = `<button class="btn ${eco.coins>=it.price?'primary':''}" data-buy="${it.id}">${it.price}🪙</button>`;
+  } else if(it.cat==='jardin'){
+    action = `<span class="ownedTag">✓ instalado</span>`;
+  } else {
+    const cid = Object.keys(eco.wear).find(k=>eco.wear[k]===it.id);
+    const c = cid!==undefined ? cats.find(x=>x.id===+cid) : null;
+    action = `<span class="wearChip" data-wear="${it.id}" title="Tocar para pasarlo al siguiente michi">${c?`lo lleva ${esc(c.name)}`:'nadie lo lleva'} ▸</span>`;
+  }
+  return `<div class="shopItem ${owned?'owned':''}">
+    <canvas class="shopPrev" data-prev="${it.id}" width="24" height="24"></canvas>
+    <div class="siInfo"><div class="siName">${it.name}</div><div class="siDesc">${it.desc}</div></div>
+    ${action}
+  </div>`;
+}
+function renderShop(){
+  updateCoinUI();
+  let html = `<div class="colTitle e">🏡 PARA EL JARDÍN</div>`;
+  for(const it of SHOP.filter(i=>i.cat==='jardin')) html += shopItemHTML(it);
+  html += `<div class="colTitle p">🎀 PARA TUS MICHIS</div>`;
+  for(const it of SHOP.filter(i=>i.cat==='michi')) html += shopItemHTML(it);
+  document.getElementById('shopList').innerHTML = html;
+  for(const cv2 of document.querySelectorAll('#shopList canvas[data-prev]')) drawShopPreview(cv2);
+}
+function drawShopPreview(cv2){
+  const id = cv2.dataset.prev, it = SHOP_BY[id];
+  const g = cv2.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  g.clearRect(0,0,24,24);
+  const col = it.color ?? '#fff';
+  if(it.cat==='michi'){
+    // cabecita gris de maniquí
+    g.fillStyle='#9a93ad';
+    g.fillRect(6,9,12,10); g.fillRect(6,6,3,4); g.fillRect(15,6,3,4);
+    g.fillStyle='#241c2e'; g.fillRect(9,12,2,2); g.fillRect(13,12,2,2);
+  }
+  g.fillStyle = col;
+  switch(id){
+    case 'band_r': case 'band_b': g.fillRect(6,18,12,3); g.fillRect(8,21,4,2); break;
+    case 'mono': g.fillRect(3,7,4,6); g.fillRect(8,7,4,6); g.fillStyle='#fff'; g.fillRect(7,9,1,2); break;
+    case 'gorro': for(let i=0;i<5;i++) g.fillRect(12-i, 1+i*2, 2+i*2, 2); g.fillStyle='#fff'; g.fillRect(11,0,3,2); break;
+    case 'corona': g.fillRect(6,5,12,3); g.fillRect(6,2,3,3); g.fillRect(11,1,3,4); g.fillRect(15,2,3,3); break;
+    case 'cama': g.fillStyle='#8a3f5c'; g.fillRect(3,12,18,8); g.fillStyle='#c95f86'; g.fillRect(5,10,14,7); g.fillStyle='#ffd1e8'; g.fillRect(10,12,4,2); break;
+    case 'farol': g.fillStyle='#55506b'; g.fillRect(11,8,2,14); g.fillStyle='#ffd23f'; g.fillRect(8,2,8,7); g.fillStyle='#55506b'; g.fillRect(7,1,10,2); break;
+    case 'lirios': g.fillStyle='#3f8a3a'; g.fillRect(4,14,9,5); g.fillRect(13,8,7,4); g.fillStyle='#ff8ab8'; g.fillRect(7,12,3,3); g.fillStyle='#fff'; g.fillRect(15,6,3,3); break;
+    case 'banderines': g.fillStyle='#55506b'; g.fillRect(1,4,22,2);
+      ['#d84a4a','#ffd23f','#3a78d8','#3f9e58'].forEach((c2,i)=>{ g.fillStyle=c2; g.fillRect(2+i*5,6,4,3); g.fillRect(3+i*5,9,2,2); }); break;
+    case 'casita': g.fillStyle='#b08a54'; g.fillRect(4,10,16,11); g.fillStyle='#c95f3f'; for(let i=0;i<5;i++) g.fillRect(3+i*2,9-i,18-i*4,2); g.fillStyle='#241c2e'; g.fillRect(9,14,6,7); break;
+    case 'fuente': g.fillStyle='#8d8da1'; g.fillRect(4,15,16,6); g.fillStyle='#6d9bd8'; g.fillRect(6,16,12,3); g.fillStyle='#a8c8ee'; g.fillRect(11,3,2,12); g.fillRect(9,5,1,4); g.fillRect(14,5,1,4); break;
+  }
+}
+document.getElementById('panelShop').addEventListener('click', e=>{
+  const b = e.target.closest('[data-buy]');
+  if(b){
+    const it = SHOP_BY[b.dataset.buy];
+    if(!it || ecoOwns(it.id)) return;
+    if(eco.coins < it.price){
+      toast(`🪙 Te faltan ${it.price-eco.coins} monedas — ¡a completar tareas!`);
+      return;
+    }
+    eco.coins -= it.price; eco.owned.push(it.id);
+    if(it.cat==='jardin' && it.x) burstConfetti(it.x, it.y-10, 24);
+    toast(it.cat==='jardin' ? `🎉 ¡${it.name}: instalado en tu jardín!` : `🎉 ¡${it.name}! Tócalo para ponérselo a un michi`);
+    save(); renderShop();
+    return;
+  }
+  const w = e.target.closest('[data-wear]');
+  if(w){
+    const itemId = w.dataset.wear;
+    const cur = Object.keys(eco.wear).find(k=>eco.wear[k]===itemId);
+    const ids = cats.map(c=>c.id);
+    if(!ids.length) return;
+    let next = null;
+    if(cur===undefined) next = ids[0];
+    else {
+      const i = ids.indexOf(+cur);
+      delete eco.wear[cur];
+      if(i+1 < ids.length) next = ids[i+1];
+    }
+    if(next!=null){
+      // un accesorio por gato: el nuevo reemplaza al anterior
+      eco.wear[next] = itemId;
+      const c = cats.find(x=>x.id===next);
+      if(c) spawnHearts(c,2);
+    }
+    save(); renderShop();
+  }
+});
 // ◎ modo acuario: pantalla completa solo-mapa para mirar a los michis
 document.getElementById('zAqua').onclick = ()=>{
   const on = document.body.classList.toggle('aqua');
@@ -2237,7 +2489,7 @@ function toast(msg){
 const LS_KEY = 'michi-tasks-v1';
 function save(){
   const data = {
-    catSeq, taskSeq, bowlFish: world.bowl.fish, time: world.time, stats,
+    catSeq, taskSeq, bowlFish: world.bowl.fish, time: world.time, stats, eco,
     cats: cats.map(c=>({id:c.id, name:c.name, personality:c.personality, fur:c.fur,
       pattern:c.pattern, patternColor:c.patternColor, eye:c.eye, seed:c.seed, hunger:Math.round(c.hunger)})),
     tasks,
@@ -2252,6 +2504,7 @@ function load(){
     world.bowl.fish = data.bowlFish ?? 0;
     world.time = data.time ?? 9;
     stats = data.stats ?? {streak:0, best:0, lastActive:null, lastRollover:todayStr(), history:{}};
+    eco = data.eco ?? {coins:80, owned:[], wear:{}};
     cats = data.cats.map(d=>new Cat(d));
     tasks = data.tasks ?? [];
     return;
@@ -2489,6 +2742,7 @@ initButterflies();
 dailyRollover();           // hábitos renacen si es un día nuevo
 setInterval(dailyRollover, 60000); // y también si la medianoche llega con la app abierta
 updateStreakUI();
+updateCoinUI();
 renderTasks();
 renderCats();
 updateBowlInfo();
